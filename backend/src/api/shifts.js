@@ -4,6 +4,77 @@ const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const db = require('../config/db');
 
+// @route   POST api/shifts
+// @desc    管理者が新しい確定シフトを作成する
+// @access  Private (Admin)
+router.post('/', [auth, admin], async (req, res) => {
+  const { user_id, start_time, end_time } = req.body;
+
+  if (!user_id || !start_time || !end_time) {
+    return res.status(400).json({ message: '必須項目が不足しています。' });
+  }
+
+  try {
+    const newShift = await db.query(
+      'INSERT INTO shifts (user_id, start_time, end_time) VALUES ($1, $2, $3) RETURNING *',
+      [user_id, start_time, end_time]
+    );
+    res.status(201).json(newShift.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
+// @route   PUT api/shifts/:id
+// @desc    確定シフトを更新する (時間や担当者)
+// @access  Private (Admin)
+router.put('/:id', [auth, admin], async (req, res) => {
+  const { user_id, start_time, end_time } = req.body;
+  const { id } = req.params;
+
+  if (!user_id || !start_time || !end_time) {
+    return res.status(400).json({ message: '必須項目が不足しています。' });
+  }
+
+  try {
+    const updatedShift = await db.query(
+      'UPDATE shifts SET user_id = $1, start_time = $2, end_time = $3 WHERE id = $4 RETURNING *',
+      [user_id, start_time, end_time, id]
+    );
+
+    if (updatedShift.rows.length === 0) {
+      return res.status(404).json({ message: '該当するシフトが見つかりません。' });
+    }
+
+    res.json(updatedShift.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
+// @route   DELETE api/shifts/:id
+// @desc    確定シフトを削除する
+// @access  Private (Admin)
+router.delete('/:id', [auth, admin], async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const deleteResult = await db.query('DELETE FROM shifts WHERE id = $1 RETURNING *', [id]);
+
+    if (deleteResult.rowCount === 0) {
+      return res.status(404).json({ message: '該当するシフトが見つかりません。' });
+    }
+
+    res.json({ message: 'シフトが削除されました。' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
+
 // @route   POST api/shifts/requests
 // @desc    希望シフトを提出する
 // @access  Private
@@ -34,7 +105,7 @@ router.post('/requests', auth, async (req, res) => {
 router.get('/requests', [auth, admin], async (req, res) => {
   try {
     const allRequests = await db.query(
-      'SELECT sr.id, sr.start_time, sr.end_time, sr.status, u.name as user_name FROM shift_requests sr JOIN users u ON sr.user_id = u.id ORDER BY sr.created_at DESC'
+      'SELECT sr.id, sr.user_id, sr.start_time, sr.end_time, sr.status, u.name as user_name FROM shift_requests sr JOIN users u ON sr.user_id = u.id ORDER BY sr.created_at DESC'
     );
     res.json(allRequests.rows);
   } catch (error) {
@@ -105,7 +176,7 @@ router.get('/my-shifts', auth, async (req, res) => {
 router.get('/all', [auth, admin], async (req, res) => {
   try {
     const allShifts = await db.query(
-      'SELECT s.id, s.start_time, s.end_time, u.name as user_name FROM shifts s JOIN users u ON s.user_id = u.id ORDER BY s.start_time ASC'
+      'SELECT s.id, s.user_id, s.start_time, s.end_time, u.name as user_name FROM shifts s JOIN users u ON s.user_id = u.id ORDER BY s.start_time ASC'
     );
     res.json(allShifts.rows);
   } catch (error) {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { TextField, Button, Typography, Container, Box, Alert, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -8,7 +9,7 @@ const RegisterPage = () => {
     name: '',
     email: '',
     password: '',
-    role: 'staff', // Default role
+    role: 'staff',
   });
   const [error, setError] = useState('');
 
@@ -19,60 +20,91 @@ const RegisterPage = () => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       await api.post('/auth/register', formData);
       alert('登録が完了しました。ログインページに移動します。');
       navigate('/login');
     } catch (err) {
-      console.error(err.response.data);
-      setError(err.response.data.message || '登録に失敗しました。');
+      console.error(err.response?.data);
+      setError(err.response?.data?.message || '登録に失敗しました。');
     }
   };
 
   return (
-    <div>
-      <h1>ユーザー登録</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={onSubmit}>
-        <div>
-          <input
-            type="text"
-            placeholder="名前"
+    <Container component="main" maxWidth="xs">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <Typography component="h1" variant="h5">
+          ユーザー登録
+        </Typography>
+        <Box component="form" onSubmit={onSubmit} noValidate sx={{ mt: 3 }}>
+          {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="name"
+            label="名前"
             name="name"
+            autoComplete="name"
+            autoFocus
             value={name}
             onChange={onChange}
-            required
           />
-        </div>
-        <div>
-          <input
-            type="email"
-            placeholder="メールアドレス"
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="email"
+            label="メールアドレス"
             name="email"
+            autoComplete="email"
             value={email}
             onChange={onChange}
-            required
           />
-        </div>
-        <div>
-          <input
-            type="password"
-            placeholder="パスワード"
+          <TextField
+            margin="normal"
+            required
+            fullWidth
             name="password"
+            label="パスワード"
+            type="password"
+            id="password"
             value={password}
             onChange={onChange}
-            required
           />
-        </div>
-        <div>
-          <select name="role" value={role} onChange={onChange}>
-            <option value="staff">スタッフ</option>
-            <option value="admin">管理者</option>
-          </select>
-        </div>
-        <input type="submit" value="登録" />
-      </form>
-    </div>
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="role-select-label">役割</InputLabel>
+            <Select
+              labelId="role-select-label"
+              id="role"
+              name="role"
+              value={role}
+              label="役割"
+              onChange={onChange}
+            >
+              <MenuItem value="staff">スタッフ</MenuItem>
+              <MenuItem value="admin">管理者</MenuItem>
+            </Select>
+          </FormControl>
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            sx={{ mt: 3, mb: 2 }}
+          >
+            登録
+          </Button>
+        </Box>
+      </Box>
+    </Container>
   );
 };
 

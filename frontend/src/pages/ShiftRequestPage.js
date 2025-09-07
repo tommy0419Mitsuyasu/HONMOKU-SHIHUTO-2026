@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../services/api';
+import { TextField, Button, Typography, Box, Alert, Paper } from '@mui/material';
 
 const ShiftRequestPage = () => {
   const [formData, setFormData] = useState({
@@ -21,49 +22,58 @@ const ShiftRequestPage = () => {
     setError('');
     try {
       const token = localStorage.getItem('token');
-      const config = {
-        headers: {
-          'x-auth-token': token,
-        },
-      };
+      const config = { headers: { 'x-auth-token': token } };
       await api.post('/shifts/requests', formData, config);
       setMessage('希望シフトを提出しました。');
-      setFormData({ start_time: '', end_time: '' }); // フォームをリセット
+      setFormData({ start_time: '', end_time: '' });
     } catch (err) {
-      console.error(err.response.data);
-      setError(err.response.data.message || '提出に失敗しました。');
+      console.error(err.response?.data);
+      setError(err.response?.data?.message || '提出に失敗しました。');
     }
   };
 
   return (
-    <div>
-      <h2>希望シフト提出</h2>
-      {message && <p style={{ color: 'green' }}>{message}</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={onSubmit}>
-        <div>
-          <label>開始日時:</label>
-          <input
-            type="datetime-local"
-            name="start_time"
-            value={start_time}
-            onChange={onChange}
-            required
-          />
-        </div>
-        <div>
-          <label>終了日時:</label>
-          <input
-            type="datetime-local"
-            name="end_time"
-            value={end_time}
-            onChange={onChange}
-            required
-          />
-        </div>
-        <input type="submit" value="提出" />
-      </form>
-    </div>
+    <Paper elevation={3} sx={{ p: 4 }}>
+      <Typography variant="h5" component="h2" gutterBottom>
+        希望シフト提出
+      </Typography>
+      <Box component="form" onSubmit={onSubmit} noValidate sx={{ mt: 1 }}>
+        {message && <Alert severity="success" sx={{ width: '100%', mb: 2 }}>{message}</Alert>}
+        {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
+        <TextField
+          margin="normal"
+          required
+          fullWidth
+          id="start_time"
+          label="開始日時"
+          name="start_time"
+          type="datetime-local"
+          InputLabelProps={{ shrink: true }}
+          value={start_time}
+          onChange={onChange}
+        />
+        <TextField
+          margin="normal"
+          required
+          fullWidth
+          id="end_time"
+          label="終了日時"
+          name="end_time"
+          type="datetime-local"
+          InputLabelProps={{ shrink: true }}
+          value={end_time}
+          onChange={onChange}
+        />
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          sx={{ mt: 3, mb: 2 }}
+        >
+          提出
+        </Button>
+      </Box>
+    </Paper>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { TextField, Button, Typography, Container, Box, Alert } from '@mui/material';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -17,47 +18,68 @@ const LoginPage = () => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       const res = await api.post('/auth/login', formData);
-      // トークンをlocalStorageに保存
       localStorage.setItem('token', res.data.token);
-      alert('ログインしました。');
       navigate('/');
-      window.location.reload(); // ページをリロードしてナビゲーションバーの状態を更新
+      window.location.reload(); // レイアウト更新のためリロード
     } catch (err) {
-      console.error(err.response.data);
-      setError(err.response.data.message || 'ログインに失敗しました。');
+      console.error(err.response?.data);
+      setError(err.response?.data?.message || 'ログインに失敗しました。');
     }
   };
 
   return (
-    <div>
-      <h1>ログイン</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={onSubmit}>
-        <div>
-          <input
-            type="email"
-            placeholder="メールアドレス"
+    <Container component="main" maxWidth="xs">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <Typography component="h1" variant="h5">
+          ログイン
+        </Typography>
+        <Box component="form" onSubmit={onSubmit} noValidate sx={{ mt: 1 }}>
+          {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="email"
+            label="メールアドレス"
             name="email"
+            autoComplete="email"
+            autoFocus
             value={email}
             onChange={onChange}
-            required
           />
-        </div>
-        <div>
-          <input
-            type="password"
-            placeholder="パスワード"
+          <TextField
+            margin="normal"
+            required
+            fullWidth
             name="password"
+            label="パスワード"
+            type="password"
+            id="password"
+            autoComplete="current-password"
             value={password}
             onChange={onChange}
-            required
           />
-        </div>
-        <input type="submit" value="ログイン" />
-      </form>
-    </div>
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            sx={{ mt: 3, mb: 2 }}
+          >
+            ログイン
+          </Button>
+        </Box>
+      </Box>
+    </Container>
   );
 };
 

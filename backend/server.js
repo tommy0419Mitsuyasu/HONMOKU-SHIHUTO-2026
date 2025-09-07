@@ -12,8 +12,10 @@ app.use(express.json()); // for parsing application/json
 // API Routes
 const authRoutes = require('./src/api/auth');
 const shiftRoutes = require('./src/api/shifts');
+const userRoutes = require('./src/api/users');
 app.use('/api/auth', authRoutes);
 app.use('/api/shifts', shiftRoutes);
+app.use('/api/users', userRoutes);
 
 app.get('/', (req, res) => {
   res.send('Shift Management API is running!');

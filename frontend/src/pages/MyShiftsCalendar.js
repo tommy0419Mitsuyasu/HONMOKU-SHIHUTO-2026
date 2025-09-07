@@ -3,6 +3,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import api from '../services/api';
+import { Paper, Typography, Alert, Box } from '@mui/material';
 
 // momentのロケールを日本語に設定
 moment.locale('ja');
@@ -19,7 +20,6 @@ const MyShiftsCalendar = () => {
         const config = { headers: { 'x-auth-token': token } };
         const res = await api.get('/shifts/my-shifts', config);
 
-        // カレンダーで表示できる形式にデータを変換
         const formattedShifts = res.data.map(shift => ({
           title: '確定シフト',
           start: new Date(shift.start_time),
@@ -29,8 +29,8 @@ const MyShiftsCalendar = () => {
 
         setMyShifts(formattedShifts);
       } catch (err) {
-        console.error(err.response.data);
-        setError(err.response.data.message || 'シフトの取得に失敗しました。');
+        console.error(err.response?.data);
+        setError(err.response?.data?.message || 'シフトの取得に失敗しました。');
       }
     };
 
@@ -38,16 +38,17 @@ const MyShiftsCalendar = () => {
   }, []);
 
   return (
-    <div>
-      <h2>自分の確定シフト</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <div style={{ height: '70vh' }}>
+    <Paper elevation={3} sx={{ p: 2 }}>
+      <Typography variant="h5" component="h2" gutterBottom>
+        自分の確定シフト
+      </Typography>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <Box sx={{ height: '70vh', mt: 2 }}>
         <Calendar
           localizer={localizer}
           events={myShifts}
           startAccessor="start"
           endAccessor="end"
-          style={{ margin: '20px' }}
           messages={{
             next: "次",
             previous: "前",
@@ -61,8 +62,8 @@ const MyShiftsCalendar = () => {
             event: "イベント",
           }}
         />
-      </div>
-    </div>
+      </Box>
+    </Paper>
   );
 };
 

@@ -3,6 +3,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import api from '../services/api';
+import { Paper, Typography, Alert, Box } from '@mui/material';
 
 moment.locale('ja');
 const localizer = momentLocalizer(moment);
@@ -18,8 +19,6 @@ const AllShiftsCalendarPage = () => {
         const config = { headers: { 'x-auth-token': token } };
         const res = await api.get('/shifts/all', config);
 
-        // カレンダーで表示できる形式にデータを変換
-        // イベントのタイトルにスタッフ名を表示
         const formattedShifts = res.data.map(shift => ({
           title: shift.user_name,
           start: new Date(shift.start_time),
@@ -29,8 +28,8 @@ const AllShiftsCalendarPage = () => {
 
         setAllShifts(formattedShifts);
       } catch (err) {
-        console.error(err.response.data);
-        setError(err.response.data.message || '全シフトの取得に失敗しました。');
+        console.error(err.response?.data);
+        setError(err.response?.data?.message || '全シフトの取得に失敗しました。');
       }
     };
 
@@ -38,16 +37,17 @@ const AllShiftsCalendarPage = () => {
   }, []);
 
   return (
-    <div>
-      <h2>全スタッフの確定シフト</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <div style={{ height: '70vh' }}>
+    <Paper elevation={3} sx={{ p: 2 }}>
+      <Typography variant="h5" component="h2" gutterBottom>
+        全スタッフの確定シフト
+      </Typography>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <Box sx={{ height: '70vh', mt: 2 }}>
         <Calendar
           localizer={localizer}
           events={allShifts}
           startAccessor="start"
           endAccessor="end"
-          style={{ margin: '20px' }}
           messages={{
             next: "次",
             previous: "前",
@@ -61,8 +61,8 @@ const AllShiftsCalendarPage = () => {
             event: "イベント",
           }}
         />
-      </div>
-    </div>
+      </Box>
+    </Paper>
   );
 };
 

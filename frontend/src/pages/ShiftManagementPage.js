@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { 
+  Typography, 
+  Alert, 
+  Paper, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  Button, 
+  ButtonGroup, 
+  Chip 
+} from '@mui/material';
 
 const ShiftManagementPage = () => {
   const [requests, setRequests] = useState([]);
@@ -12,8 +26,8 @@ const ShiftManagementPage = () => {
       const res = await api.get('/shifts/requests', config);
       setRequests(res.data);
     } catch (err) {
-      console.error(err.response.data);
-      setError(err.response.data.message || 'データの取得に失敗しました。');
+      console.error(err.response?.data);
+      setError(err.response?.data?.message || 'データの取得に失敗しました。');
     }
   };
 
@@ -26,48 +40,62 @@ const ShiftManagementPage = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { 'x-auth-token': token } };
       await api.put(`/shifts/requests/${id}`, { status }, config);
-      // 一覧を再取得して画面を更新
       fetchRequests();
     } catch (err) {
-      console.error(err.response.data);
+      console.error(err.response?.data);
       alert('ステータスの更新に失敗しました。');
     }
   };
 
+  const getStatusChip = (status) => {
+    switch (status) {
+      case 'approved':
+        return <Chip label="承認済み" color="success" />;
+      case 'rejected':
+        return <Chip label="却下" color="error" />;
+      default:
+        return <Chip label="保留中" color="warning" />;
+    }
+  };
+
   return (
-    <div>
-      <h2>希望シフト管理</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <table>
-        <thead>
-          <tr>
-            <th>スタッフ名</th>
-            <th>開始日時</th>
-            <th>終了日時</th>
-            <th>ステータス</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {requests.map((req) => (
-            <tr key={req.id}>
-              <td>{req.user_name}</td>
-              <td>{new Date(req.start_time).toLocaleString('ja-JP')}</td>
-              <td>{new Date(req.end_time).toLocaleString('ja-JP')}</td>
-              <td>{req.status}</td>
-              <td>
-                {req.status === 'pending' && (
-                  <>
-                    <button onClick={() => handleStatusUpdate(req.id, 'approved')}>承認</button>
-                    <button onClick={() => handleStatusUpdate(req.id, 'rejected')}>却下</button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Paper elevation={3} sx={{ p: 2 }}>
+      <Typography variant="h5" component="h2" gutterBottom>
+        希望シフト管理
+      </Typography>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <TableContainer>
+        <Table sx={{ minWidth: 650 }} aria-label="shift requests table">
+          <TableHead>
+            <TableRow>
+              <TableCell>スタッフ名</TableCell>
+              <TableCell>開始日時</TableCell>
+              <TableCell>終了日時</TableCell>
+              <TableCell>ステータス</TableCell>
+              <TableCell align="center">操作</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {requests.map((req) => (
+              <TableRow key={req.id}>
+                <TableCell>{req.user_name}</TableCell>
+                <TableCell>{new Date(req.start_time).toLocaleString('ja-JP')}</TableCell>
+                <TableCell>{new Date(req.end_time).toLocaleString('ja-JP')}</TableCell>
+                <TableCell>{getStatusChip(req.status)}</TableCell>
+                <TableCell align="center">
+                  {req.status === 'pending' && (
+                    <ButtonGroup variant="outlined" size="small">
+                      <Button color="success" onClick={() => handleStatusUpdate(req.id, 'approved')}>承認</Button>
+                      <Button color="error" onClick={() => handleStatusUpdate(req.id, 'rejected')}>却下</Button>
+                    </ButtonGroup>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Paper>
   );
 };
 
