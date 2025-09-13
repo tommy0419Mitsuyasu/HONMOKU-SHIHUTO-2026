@@ -9,4 +9,5 @@ const pool = new Pool({
 // アプリケーション全体でクエリを実行するためにプールをエクスポートします
 module.exports = {
   query: (text, params) => pool.query(text, params),
+  getClient: () => pool.connect(),
 };

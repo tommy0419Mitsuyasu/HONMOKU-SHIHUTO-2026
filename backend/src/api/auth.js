@@ -14,6 +14,11 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ message: 'すべての項目を入力してください。' });
   }
 
+  const allowedRoles = ['admin', 'staff', 'staff_hs'];
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({ message: '無効な役割が指定されました。' });
+  }
+
   try {
     // パスワードをハッシュ化
     const salt = await bcrypt.genSalt(10);

@@ -91,6 +91,7 @@ const RegisterPage = () => {
               onChange={onChange}
             >
               <MenuItem value="staff">スタッフ</MenuItem>
+              <MenuItem value="staff_hs">スタッフ（高校生）</MenuItem>
               <MenuItem value="admin">管理者</MenuItem>
             </Select>
           </FormControl>

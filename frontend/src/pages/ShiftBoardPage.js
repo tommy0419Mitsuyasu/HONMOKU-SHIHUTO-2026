@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
 import interactionPlugin from '@fullcalendar/interaction';
 import api from '../services/api';
-import { Paper, Typography, Alert, Box } from '@mui/material';
+import { Paper, Typography, Alert, Box, TextField, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 
 const ShiftBoardPage = () => {
-  const [resources, setResources] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
 
   const fetchData = useCallback(async () => {
     try {
@@ -21,10 +23,7 @@ const ShiftBoardPage = () => {
         api.get('/shifts/requests', config),
       ]);
 
-      const calendarResources = usersRes.data
-        .filter((user) => user.role === 'staff')
-        .map((user) => ({ id: user.id.toString(), title: user.name }));
-      setResources(calendarResources);
+      setAllUsers(usersRes.data.filter(u => u.role.startsWith('staff'))); // スタッフと高校生スタッフのみ対象
 
       const confirmedEvents = shiftsRes.data
         .filter((shift) => shift.user_id)
@@ -80,15 +79,35 @@ const ShiftBoardPage = () => {
 
   const handleEventDrop = async (eventDropInfo) => {
     const { event } = eventDropInfo;
+    const token = localStorage.getItem('token');
+    const config = { headers: { 'x-auth-token': token } };
+    const newUserId = event.getResources()[0].id;
+    const newStartTime = event.start.toISOString();
+    const newEndTime = event.end.toISOString();
+
     if (event.extendedProps.isRequest) {
-      alert('希望シフトはドラッグ＆ドロップで変更できません。');
-      eventDropInfo.revert();
+      // 希望シフトのドラッグ＆ドロップは「承認」として扱う
+      try {
+        await api.put(
+          `/shifts/requests/${event.extendedProps.originalId}`,
+          {
+            status: 'approved',
+            user_id: newUserId,
+            start_time: newStartTime,
+            end_time: newEndTime,
+          },
+          config
+        );
+        fetchData();
+      } catch (err) {
+        console.error(err);
+        alert('希望シフトの更新・承認に失敗しました。');
+        eventDropInfo.revert();
+      }
       return;
     }
     try {
-      const token = localStorage.getItem('token');
-      const config = { headers: { 'x-auth-token': token } };
-      const updatedShift = { user_id: event.getResources()[0].id, start_time: event.start.toISOString(), end_time: event.end.toISOString() };
+      const updatedShift = { user_id: newUserId, start_time: newStartTime, end_time: newEndTime };
       await api.put(`/shifts/${event.id}`, updatedShift, config);
       fetchData();
     } catch (err) {
@@ -127,12 +146,48 @@ const ShiftBoardPage = () => {
     }
   };
 
+  const filteredResources = useMemo(() => {
+    return allUsers
+      .filter(user => {
+        const nameMatch = user.name.toLowerCase().includes(nameFilter.toLowerCase());
+        const roleMatch = roleFilter === 'all' || user.role === roleFilter;
+        return nameMatch && roleMatch;
+      })
+      .map(user => ({ id: user.id.toString(), title: user.name }));
+  }, [allUsers, nameFilter, roleFilter]);
+
   return (
     <Paper elevation={3} sx={{ p: 2 }}>
       <Typography variant="h5" component="h2" gutterBottom>
         シフトボード
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <TextField
+            label="名前で検索"
+            variant="outlined"
+            value={nameFilter}
+            onChange={(e) => setNameFilter(e.target.value)}
+            sx={{ flexGrow: 1 }}
+          />
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel id="role-filter-label">役割で絞り込み</InputLabel>
+            <Select
+              labelId="role-filter-label"
+              value={roleFilter}
+              label="役割で絞り込み"
+              onChange={(e) => setRoleFilter(e.target.value)}
+            >
+              <MenuItem value="all">すべて</MenuItem>
+              <MenuItem value="staff">スタッフ</MenuItem>
+              <MenuItem value="staff_hs">スタッフ（高校生）</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+      </Paper>
+
       <Box sx={{ mt: 2, '.fc-license-message': { display: 'none' } }}>
         <style>{`
           .slot-staff-count {
@@ -152,7 +207,7 @@ const ShiftBoardPage = () => {
             center: 'title',
             right: 'resourceTimelineDay,resourceTimelineWeek,resourceTimelineMonth',
           }}
-          resources={resources}
+          resources={filteredResources}
           events={events}
           editable={true}
           selectable={true}

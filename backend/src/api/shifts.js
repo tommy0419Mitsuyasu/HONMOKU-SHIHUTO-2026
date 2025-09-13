@@ -80,10 +80,21 @@ router.delete('/:id', [auth, admin], async (req, res) => {
 // @access  Private
 router.post('/requests', auth, async (req, res) => {
   const { start_time, end_time } = req.body;
-  const user_id = req.user.id; // 認証ミドルウェアからユーザーIDを取得
+  const { id: user_id, role } = req.user; // 認証ミドルウェアからユーザーIDと役割を取得
 
   if (!start_time || !end_time) {
     return res.status(400).json({ message: '開始日時と終了日時を入力してください。' });
+  }
+
+  // 高校生の労働時間制限チェック
+  if (role === 'staff_hs') {
+    const startTime = new Date(start_time);
+    const endTime = new Date(end_time);
+    const durationHours = (endTime - startTime) / (1000 * 60 * 60); // 差を時間単位で計算
+
+    if (durationHours > 9) {
+      return res.status(400).json({ message: '1日の勤務時間は9時間を超えられません。' });
+    }
   }
 
   try {
@@ -118,7 +129,7 @@ router.get('/requests', [auth, admin], async (req, res) => {
 // @desc    希望シフトのステータスを更新する
 // @access  Private (Admin)
 router.put('/requests/:id', [auth, admin], async (req, res) => {
-  const { status } = req.body;
+  const { status, start_time, end_time, user_id } = req.body;
   const { id } = req.params;
 
   if (!status || !['approved', 'rejected'].includes(status)) {
@@ -126,12 +137,11 @@ router.put('/requests/:id', [auth, admin], async (req, res) => {
   }
 
   try {
-    // まず、リクエストされた希望シフトの情報を取得
     const requestResult = await db.query('SELECT * FROM shift_requests WHERE id = $1', [id]);
     if (requestResult.rows.length === 0) {
       return res.status(404).json({ message: '該当する希望シフトが見つかりません。' });
     }
-    const shiftRequest = requestResult.rows[0];
+    const originalRequest = requestResult.rows[0];
 
     // ステータスを更新
     const updatedRequest = await db.query(
@@ -139,15 +149,35 @@ router.put('/requests/:id', [auth, admin], async (req, res) => {
       [status, id]
     );
 
-    // もし承認されたなら、確定シフトテーブルにも追加
+    // 承認された場合、確定シフトを作成または更新
     if (status === 'approved') {
+      const final_user_id = user_id || originalRequest.user_id;
+      const final_start_time = start_time || originalRequest.start_time;
+      const final_end_time = end_time || originalRequest.end_time;
+
       await db.query(
         'INSERT INTO shifts (user_id, start_time, end_time) VALUES ($1, $2, $3)',
-        [shiftRequest.user_id, shiftRequest.start_time, shiftRequest.end_time]
+        [final_user_id, final_start_time, final_end_time]
       );
     }
 
     res.json(updatedRequest.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
+// @route   GET api/shifts/my-requests
+// @desc    自分の希望シフトを取得する
+// @access  Private
+router.get('/my-requests', auth, async (req, res) => {
+  try {
+    const myRequests = await db.query(
+      'SELECT * FROM shift_requests WHERE user_id = $1 ORDER BY start_time ASC',
+      [req.user.id]
+    );
+    res.json(myRequests.rows);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'サーバーエラーが発生しました。' });
@@ -182,6 +212,116 @@ router.get('/all', [auth, admin], async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
+// @route   POST api/shifts/requests/bulk-approve
+// @desc    複数の希望シフトを一括承認する
+// @access  Private (Admin)
+router.post('/requests/bulk-approve', [auth, admin], async (req, res) => {
+  const { requestIds } = req.body; // 承認するIDの配列
+
+  if (!requestIds || !Array.isArray(requestIds) || requestIds.length === 0) {
+    return res.status(400).json({ message: '承認する希望シフトのIDを指定してください。' });
+  }
+
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN'); // トランザクション開始
+
+    // 1. 対象の希望シフト情報を取得
+    const requestsResult = await client.query(
+      'SELECT * FROM shift_requests WHERE id = ANY($1::int[]) AND status = \'pending\'',
+      [requestIds]
+    );
+    const requestsToApprove = requestsResult.rows;
+
+    if (requestsToApprove.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: '承認対象の希望シフトが見つかりません。' });
+    }
+
+    // 2. ステータスを 'approved' に更新
+    await client.query(
+      'UPDATE shift_requests SET status = \'approved\' WHERE id = ANY($1::int[])',
+      [requestIds]
+    );
+
+    // 3. 確定シフトテーブルに挿入
+    const insertValues = requestsToApprove.map(
+      req => `(${req.user_id}, '${new Date(req.start_time).toISOString()}', '${new Date(req.end_time).toISOString()}')`
+    ).join(',');
+    
+    if (insertValues) {
+        await client.query(
+            `INSERT INTO shifts (user_id, start_time, end_time) VALUES ${insertValues}`
+        );
+    }
+
+    await client.query('COMMIT'); // トランザクション確定
+    res.json({ message: `${requestsToApprove.length}件の希望シフトが承認されました。` });
+
+  } catch (error) {
+    await client.query('ROLLBACK'); // エラー時はロールバック
+    console.error(error);
+    res.status(500).json({ message: '一括承認処理中にエラーが発生しました。' });
+  } finally {
+    client.release(); // コネクションをプールに返却
+  }
+});
+
+// @route   GET api/shifts/my-work-summary
+// @desc    自分の総労働時間サマリーを取得する
+// @access  Private
+router.get('/my-work-summary', auth, async (req, res) => {
+  const user_id = req.user.id;
+
+  try {
+    // 1. 集計期間を定義 (毎月10日～翌月10日)
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-11
+
+    let startDate, endDate;
+
+    if (currentDay < 10) {
+      startDate = new Date(currentYear, currentMonth - 1, 10);
+      endDate = new Date(currentYear, currentMonth, 10);
+    } else {
+      startDate = new Date(currentYear, currentMonth, 10);
+      endDate = new Date(currentYear, currentMonth + 1, 10);
+    }
+
+    // 2. 期間内の自分の確定シフトを取得
+    const shiftsResult = await db.query(
+      'SELECT start_time, end_time FROM shifts WHERE user_id = $1 AND start_time >= $2 AND start_time < $3',
+      [user_id, startDate, endDate]
+    );
+    const shifts = shiftsResult.rows;
+
+    // 3. 実労働時間を集計
+    let totalWorkHours = 0;
+    for (const shift of shifts) {
+      const durationMs = new Date(shift.end_time) - new Date(shift.start_time);
+      let durationHours = durationMs / (1000 * 60 * 60);
+
+      // 6.5時間以上の勤務で1時間の休憩を差し引く
+      if (durationHours >= 6.5) {
+        durationHours -= 1;
+      }
+      totalWorkHours += durationHours;
+    }
+
+    res.json({ 
+      totalWorkHours: Math.round(totalWorkHours * 100) / 100, // 小数点第2位に丸める
+      startDate: startDate.toLocaleDateString('ja-JP'),
+      endDate: endDate.toLocaleDateString('ja-JP'),
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '労働時間サマリーの取得に失敗しました。' });
   }
 });
 

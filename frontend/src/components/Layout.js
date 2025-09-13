@@ -1,20 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Button, Container, Box } from '@mui/material';
-import jwt_decode from 'jwt-decode';
+import { AppBar, Toolbar, Typography, Button, Container, Box, Badge } from '@mui/material';
+import { getUserFromToken } from '../utils/authUtils';
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
-  let user = null;
-  if (token) {
-    try {
-      user = jwt_decode(token);
-    } catch (e) {
-      console.error('Invalid token:', e);
-      localStorage.removeItem('token');
+  const user = getUserFromToken();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    // 管理者の場合のみ未承認件数を取得
+    if (user?.role === 'admin') {
+      const fetchPendingCount = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const config = { headers: { 'x-auth-token': token } };
+          const res = await api.get('/shifts/requests', config);
+          const pending = res.data.filter(r => r.status === 'pending');
+          setPendingCount(pending.length);
+        } catch (error) {
+          console.error('Failed to fetch pending requests count', error);
+        }
+      };
+      fetchPendingCount();
     }
-  }
+  }, [user]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -29,13 +39,18 @@ const Layout = ({ children }) => {
           <Typography variant="h6" component={RouterLink} to="/" sx={{ flexGrow: 1, color: 'inherit', textDecoration: 'none' }}>
             シフト管理
           </Typography>
-          {token && user ? (
+          {user ? (
             <>
-              {user.user.role === 'admin' ? (
+              {user.role === 'admin' ? (
                 <>
                   <Button color="inherit" component={RouterLink} to="/shift-board">シフトボード</Button>
-                  <Button color="inherit" component={RouterLink} to="/manage-shifts">希望シフト管理</Button>
+                  <Button color="inherit" component={RouterLink} to="/manage-shifts">
+                    <Badge badgeContent={pendingCount} color="error">
+                      希望シフト管理
+                    </Badge>
+                  </Button>
                   <Button color="inherit" component={RouterLink} to="/all-shifts">全シフト確認</Button>
+                  <Button color="inherit" component={RouterLink} to="/member-management">メンバー管理</Button>
                 </>
               ) : (
                 <>

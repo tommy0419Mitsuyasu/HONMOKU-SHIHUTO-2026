@@ -11,16 +11,21 @@ const localizer = momentLocalizer(moment);
 
 const MyShiftsCalendar = () => {
   const [myShifts, setMyShifts] = useState([]);
+  const [workSummary, setWorkSummary] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchMyShifts = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
         const config = { headers: { 'x-auth-token': token } };
-        const res = await api.get('/shifts/my-shifts', config);
+        
+        const [shiftsRes, summaryRes] = await Promise.all([
+          api.get('/shifts/my-shifts', config),
+          api.get('/shifts/my-work-summary', config)
+        ]);
 
-        const formattedShifts = res.data.map(shift => ({
+        const formattedShifts = shiftsRes.data.map(shift => ({
           title: '確定シフト',
           start: new Date(shift.start_time),
           end: new Date(shift.end_time),
@@ -28,13 +33,15 @@ const MyShiftsCalendar = () => {
         }));
 
         setMyShifts(formattedShifts);
+        setWorkSummary(summaryRes.data);
+
       } catch (err) {
         console.error(err.response?.data);
-        setError(err.response?.data?.message || 'シフトの取得に失敗しました。');
+        setError(err.response?.data?.message || 'データの取得に失敗しました。');
       }
     };
 
-    fetchMyShifts();
+    fetchData();
   }, []);
 
   return (
@@ -42,6 +49,16 @@ const MyShiftsCalendar = () => {
       <Typography variant="h5" component="h2" gutterBottom>
         自分の確定シフト
       </Typography>
+      {workSummary && (
+        <Paper elevation={1} sx={{ p: 2, mb: 2, backgroundColor: 'primary.light' }}>
+          <Typography variant="h6" color="primary.contrastText">
+            今月の総労働時間 (集計期間: {workSummary.startDate} ~ {workSummary.endDate})
+          </Typography>
+          <Typography variant="h4" color="primary.contrastText" sx={{ fontWeight: 'bold' }}>
+            {workSummary.totalWorkHours} 時間
+          </Typography>
+        </Paper>
+      )}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Box sx={{ height: '70vh', mt: 2 }}>
         <Calendar
