@@ -66,6 +66,12 @@ const MyShiftsCalendar = () => {
           events={myShifts}
           startAccessor="start"
           endAccessor="end"
+          defaultView="month"
+          views={['month', 'week', 'day']}
+          onDrillDown={(date, view) => {
+            // ここでビューの変更を制御できますが、デフォルトの動作で十分です
+            console.log('Drilling down to', date, view);
+          }}
           messages={{
             next: "次",
             previous: "前",
@@ -77,6 +83,7 @@ const MyShiftsCalendar = () => {
             date: "日付",
             time: "時間",
             event: "イベント",
+            showMore: total => `他 ${total} 件`
           }}
         />
       </Box>

@@ -325,4 +325,109 @@ router.get('/my-work-summary', auth, async (req, res) => {
   }
 });
 
+// @route   DELETE api/shifts/:id
+// @desc    確定シフトを削除する
+// @access  Private (Admin)
+router.delete('/:id', [auth, admin], async (req, res) => {
+  try {
+    const result = await db.query('DELETE FROM shifts WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: '該当するシフトが見つかりません。' });
+    }
+    res.json({ message: 'シフトが削除されました。' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
+// @route   DELETE api/shifts/requests/:id
+// @desc    希望シフトを削除する
+// @access  Private (Admin)
+router.delete('/requests/:id', [auth, admin], async (req, res) => {
+  try {
+    const result = await db.query('DELETE FROM shift_requests WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: '該当する希望シフトが見つかりません。' });
+    }
+    res.json({ message: '希望シフトが削除されました。' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
+// @route   PUT api/shifts/requests/my/:id
+// @desc    自分の希望シフトを修正する
+// @access  Private (Staff)
+router.put('/requests/my/:id', auth, async (req, res) => {
+  const { start_time, end_time } = req.body;
+  const { id } = req.params;
+  const user_id = req.user.id;
+
+  if (!start_time || !end_time) {
+    return res.status(400).json({ message: '開始日時と終了日時を指定してください。' });
+  }
+
+  try {
+    // 希望シフトの所有者とステータスを確認
+    const requestResult = await db.query(
+      'SELECT * FROM shift_requests WHERE id = $1 AND user_id = $2',
+      [id, user_id]
+    );
+
+    if (requestResult.rows.length === 0) {
+      return res.status(404).json({ message: '該当する希望シフトが見つからないか、編集権限がありません。' });
+    }
+
+    const shiftRequest = requestResult.rows[0];
+    if (shiftRequest.status !== 'pending') {
+      return res.status(403).json({ message: '承認済または却下されたシフトは修正できません。' });
+    }
+
+    // 希望シフトを更新
+    const updatedRequest = await db.query(
+      'UPDATE shift_requests SET start_time = $1, end_time = $2 WHERE id = $3 RETURNING *',
+      [start_time, end_time, id]
+    );
+
+    res.json(updatedRequest.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
+// @route   DELETE api/shifts/requests/my/:id
+// @desc    自分の希望シフトを削除する
+// @access  Private (Staff)
+router.delete('/requests/my/:id', auth, async (req, res) => {
+  const { id } = req.params;
+  const user_id = req.user.id;
+
+  try {
+    // 希望シフトの所有者とステータスを確認
+    const requestResult = await db.query(
+      'SELECT * FROM shift_requests WHERE id = $1 AND user_id = $2',
+      [id, user_id]
+    );
+
+    if (requestResult.rows.length === 0) {
+      return res.status(404).json({ message: '該当する希望シフトが見つからないか、削除権限がありません。' });
+    }
+
+    if (requestResult.rows[0].status !== 'pending') {
+      return res.status(403).json({ message: '承認済または却下されたシフトは削除できません。' });
+    }
+
+    // 希望シフトを削除
+    await db.query('DELETE FROM shift_requests WHERE id = $1', [id]);
+
+    res.json({ message: '希望シフトを削除しました。' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
 module.exports = router;

@@ -77,6 +77,69 @@ const ShiftBoardPage = () => {
     }
   };
 
+  const handleEventClick = async (clickInfo) => {
+    const { event } = clickInfo;
+    const isRequest = event.extendedProps.isRequest;
+    const originalId = event.extendedProps.originalId;
+    const shiftId = isRequest ? originalId : event.id;
+    const endpoint = isRequest ? `/shifts/requests/${shiftId}` : `/shifts/${shiftId}`;
+    const shiftTypeText = isRequest ? 'この希望シフト' : 'この確定シフト';
+
+    if (window.confirm(`${shiftTypeText}を削除しますか？`)) {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { 'x-auth-token': token } };
+        await api.delete(endpoint, config);
+        alert('シフトを削除しました。');
+        fetchData();
+      } catch (err) {
+        console.error(err);
+        alert('シフトの削除に失敗しました。');
+      }
+    }
+  };
+
+  const handleEventResize = async (eventResizeInfo) => {
+    const { event } = eventResizeInfo;
+    const token = localStorage.getItem('token');
+    const config = { headers: { 'x-auth-token': token } };
+    const updatedShift = { 
+      user_id: event.getResources()[0].id, 
+      start_time: event.start.toISOString(), 
+      end_time: event.end.toISOString() 
+    };
+
+    // 希望シフトのリサイズは「承認」として扱う
+    if (event.extendedProps.isRequest) {
+      try {
+        await api.put(
+          `/shifts/requests/${event.extendedProps.originalId}`,
+          {
+            status: 'approved',
+            ...updatedShift
+          },
+          config
+        );
+        fetchData();
+      } catch (err) {
+        console.error(err);
+        alert('希望シフトの更新・承認に失敗しました。');
+        eventResizeInfo.revert();
+      }
+      return;
+    }
+
+    // 確定シフトのリサイズ
+    try {
+      await api.put(`/shifts/${event.id}`, updatedShift, config);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert('シフトの更新に失敗しました。');
+      eventResizeInfo.revert();
+    }
+  };
+
   const handleEventDrop = async (eventDropInfo) => {
     const { event } = eventDropInfo;
     const token = localStorage.getItem('token');
@@ -210,6 +273,8 @@ const ShiftBoardPage = () => {
           resources={filteredResources}
           events={events}
           editable={true}
+          eventResizableFromStart={true}
+          eventResize={handleEventResize}
           selectable={true}
           locale='ja'
           select={handleSelect}

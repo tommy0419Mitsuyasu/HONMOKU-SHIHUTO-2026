@@ -6,12 +6,15 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Paper, Typography, Alert, Box, Button, Stack } from '@mui/material';
 import ShiftTemplateModal from '../components/ShiftTemplateModal';
+import EditShiftRequestModal from '../components/EditShiftRequestModal';
 
 const ShiftRequestPage = () => {
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedShift, setSelectedShift] = useState(null);
 
   const fetchShiftData = useCallback(async () => {
     try {
@@ -30,6 +33,11 @@ const ShiftRequestPage = () => {
         end: new Date(req.end_time),
         backgroundColor: req.status === 'approved' ? '#2e7d32' : (req.status === 'rejected' ? '#d32f2f' : '#ed6c02'),
         borderColor: req.status === 'approved' ? '#2e7d32' : (req.status === 'rejected' ? '#d32f2f' : '#ed6c02'),
+        extendedProps: { 
+          isRequest: true, 
+          status: req.status,
+          originalId: req.id
+        },
       }));
 
       const confirmedEvents = confirmedRes.data.map(shift => ({
@@ -39,6 +47,7 @@ const ShiftRequestPage = () => {
         end: new Date(shift.end_time),
         backgroundColor: '#1976d2',
         borderColor: '#1976d2',
+        extendedProps: { isConfirmed: true },
       }));
 
       setEvents([...requestEvents, ...confirmedEvents]);
@@ -79,6 +88,53 @@ const ShiftRequestPage = () => {
   const handleModalClose = () => {
     setModalOpen(false);
     setSelectedTemplate(null);
+  };
+
+  const handleEventClick = (clickInfo) => {
+    const event = clickInfo.event;
+    // 確定シフトや却下されたシフトは操作不可
+    if (event.extendedProps.isConfirmed || event.extendedProps.status === 'rejected') {
+      alert(`このシフトは編集できません。\nステータス: ${event.title}`);
+      return;
+    }
+    // 自分の未承認シフトのみ編集可能
+    if (event.extendedProps.isRequest && event.extendedProps.status === 'pending') {
+      setSelectedShift(event);
+      setEditModalOpen(true);
+    } else {
+      alert(`シフト内容: ${event.title}\n期間: ${event.startStr} - ${event.endStr}`);
+    }
+  };
+
+  const handleEditModalClose = () => {
+    setEditModalOpen(false);
+    setSelectedShift(null);
+  };
+
+  const handleShiftUpdateRequest = async (id, startTime, endTime) => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { 'x-auth-token': token } };
+      await api.put(`/shifts/requests/my/${id}`, { start_time: startTime, end_time: endTime }, config);
+      alert('希望シフトを更新しました。');
+      fetchShiftData();
+    } catch (err) {
+      console.error(err.response?.data);
+      setError(err.response?.data?.message || '希望シフトの更新に失敗しました。');
+    }
+  };
+
+  const handleShiftDeleteRequest = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { 'x-auth-token': token } };
+      await api.delete(`/shifts/requests/my/${id}`, config);
+      alert('希望シフトを削除しました。');
+      fetchShiftData();
+    } catch (err) {
+      console.error(err.response?.data);
+      setError(err.response?.data?.message || '希望シフトの削除に失敗しました。');
+    }
   };
 
   const handleTemplateSubmit = async (startTime, endTime) => {
@@ -122,6 +178,14 @@ const ShiftRequestPage = () => {
         ))}
       </Stack>
 
+      <EditShiftRequestModal 
+        open={editModalOpen}
+        handleClose={handleEditModalClose}
+        shift={selectedShift}
+        handleUpdate={handleShiftUpdateRequest}
+        handleDelete={handleShiftDeleteRequest}
+      />
+
       <ShiftTemplateModal 
         open={modalOpen}
         handleClose={handleModalClose}
@@ -144,9 +208,7 @@ const ShiftRequestPage = () => {
           locale='ja'
           events={events}
           select={handleSelect}
-          eventClick={(clickInfo) => {
-            alert(`シフト内容: ${clickInfo.event.title}\n期間: ${clickInfo.event.startStr} - ${clickInfo.event.endStr}`);
-          }}
+          eventClick={handleEventClick}
         />
       </Box>
     </Paper>

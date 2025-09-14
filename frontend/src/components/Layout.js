@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, Container, Box, Badge } from '@mui/material';
 import { getUserFromToken } from '../utils/authUtils';
+import api from '../services/api'; // 追加
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
