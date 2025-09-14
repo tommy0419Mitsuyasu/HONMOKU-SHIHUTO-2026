@@ -9,8 +9,10 @@ import ShiftManagementPage from './pages/ShiftManagementPage';
 import MyShiftsCalendar from './pages/MyShiftsCalendar';
 import AllShiftsCalendarPage from './pages/AllShiftsCalendarPage';
 import ShiftBoardPage from './pages/ShiftBoardPage';
-import MemberManagementPage from './pages/MemberManagementPage'; // 追加
-import AdminRoute from './components/AdminRoute'; // 追加
+import MemberManagementPage from './pages/MemberManagementPage'; 
+import AdminRoute from './components/AdminRoute'; 
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { CssBaseline } from '@mui/material';
 
 const App = () => {
@@ -21,6 +23,8 @@ const App = () => {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/register" element={<RegisterPage />} />
           {/* Staff Routes */}
           <Route path="/request-shift" element={<ShiftRequestPage />} />

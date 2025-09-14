@@ -180,34 +180,6 @@ const ShiftBoardPage = () => {
     }
   };
 
-  const handleEventClick = async (clickInfo) => {
-    const { event } = clickInfo;
-    const token = localStorage.getItem('token');
-    const config = { headers: { 'x-auth-token': token } };
-
-    if (event.extendedProps.isRequest) {
-      const action = window.prompt("'approve' または 'reject' を入力してください:");
-      if (action === 'approve' || action === 'reject') {
-        try {
-          await api.put(`/shifts/requests/${event.extendedProps.originalId}`, { status: action }, config);
-          fetchData();
-        } catch (err) {
-          console.error(err);
-          alert('希望シフトの更新に失敗しました。');
-        }
-      }
-    } else {
-      if (window.confirm(`'${event.start.toLocaleString()}' のシフトを削除しますか？`)) {
-        try {
-          await api.delete(`/shifts/${event.id}`, config);
-          fetchData();
-        } catch (err) {
-          console.error(err);
-          alert('シフトの削除に失敗しました。');
-        }
-      }
-    }
-  };
 
   const filteredResources = useMemo(() => {
     return allUsers

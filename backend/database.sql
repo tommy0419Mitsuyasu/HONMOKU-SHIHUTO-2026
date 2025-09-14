@@ -30,5 +30,17 @@ CREATE TABLE shifts (
 -- サンプルデータの挿入 (任意)
 -- 管理者ユーザー
 INSERT INTO users (name, email, password_hash, role) VALUES ('管理者 太郎', 'admin@example.com', 'ここにハッシュ化されたパスワード', 'admin');
+-- パスワードリセットトークンテーブル
+CREATE TABLE password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- サンプルデータの挿入 (任意)
+-- 管理者ユーザー
+INSERT INTO users (name, email, password_hash, role) VALUES ('管理者 太郎', 'admin@example.com', 'ここにハッシュ化されたパスワード', 'admin');
 -- スタッフユーザー
 INSERT INTO users (name, email, password_hash, role) VALUES ('スタッフ 次郎', 'staff@example.com', 'ここにハッシュ化されたパスワード', 'staff');

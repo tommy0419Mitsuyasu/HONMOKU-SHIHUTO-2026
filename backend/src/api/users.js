@@ -1,8 +1,11 @@
 const express = require('express');
-const router = express.Router();
+const crypto = require('crypto');
+const db = require('../config/db');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
-const db = require('../config/db');
+const { sendPasswordResetEmail } = require('../config/mailer');
+
+const router = express.Router();
 
 // @route   GET api/users
 // @desc    すべてのユーザーを取得する (for admin shift board)
@@ -79,6 +82,46 @@ router.get('/work-summary', [auth, admin], async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: '労働時間サマリーの取得に失敗しました。' });
+  }
+});
+
+// @route   POST /api/users/:id/forgot-password
+// @desc    管理者によってユーザーのパスワードリセットを開始する
+// @access  Private (Admin)
+router.post('/:id/forgot-password', [auth, admin], async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // ユーザーが存在するか確認
+    const userResult = await db.query('SELECT * FROM users WHERE id = $1', [id]);
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ message: '該当するユーザーが見つかりません。' });
+    }
+
+    // 既存のトークンを削除
+    await db.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id]);
+
+    // 新しいリセットトークンを生成
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 3600000); // 1時間後に失効
+
+    // トークンをDBに保存
+    await db.query(
+      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+      [user.id, tokenHash, expiresAt]
+    );
+
+    // パスワードリセットメールを送信
+    await sendPasswordResetEmail(user.email, token);
+
+    res.json({ message: `${user.name} (${user.email}) にパスワードリセット用のメールを送信しました。` });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '処理中にエラーが発生しました。' });
   }
 });
 

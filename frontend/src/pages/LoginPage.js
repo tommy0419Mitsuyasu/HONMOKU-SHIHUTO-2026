@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { TextField, Button, Typography, Container, Box, Alert } from '@mui/material';
+import { TextField, Button, Typography, Container, Box, Alert, Grid, Link } from '@mui/material';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -77,6 +77,13 @@ const LoginPage = () => {
           >
             ログイン
           </Button>
+          <Grid container>
+            <Grid item>
+              <Link href="/forgot-password" variant="body2">
+                パスワードをお忘れですか？
+              </Link>
+            </Grid>
+          </Grid>
         </Box>
       </Box>
     </Container>

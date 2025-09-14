@@ -16,7 +16,9 @@ import {
   Select, 
   MenuItem, 
   FormControl, 
-  InputLabel 
+  InputLabel,
+  Button,
+  Snackbar
 } from '@mui/material';
 
 const MemberManagementPage = () => {
@@ -24,6 +26,8 @@ const MemberManagementPage = () => {
   const [error, setError] = useState('');
   const [nameFilter, setNameFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   useEffect(() => {
     const fetchWorkSummary = async () => {
@@ -54,6 +58,20 @@ const MemberManagementPage = () => {
       case 'staff': return 'スタッフ';
       case 'staff_hs': return 'スタッフ（高校生）';
       default: return role;
+    }
+  };
+
+  const handlePasswordReset = async (userId) => {
+    if (window.confirm('このユーザーにパスワードリセットメールを送信しますか？')) {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { 'x-auth-token': token } };
+        const res = await api.post(`/users/${userId}/forgot-password`, {}, config);
+        setSnackbarMessage(res.data.message);
+        setSnackbarOpen(true);
+      } catch (err) {
+        setError(err.response?.data?.message || '処理中にエラーが発生しました。');
+      }
     }
   };
 
@@ -97,6 +115,7 @@ const MemberManagementPage = () => {
               <TableCell>名前</TableCell>
               <TableCell>役割</TableCell>
               <TableCell>総労働時間（当月）</TableCell>
+              <TableCell align="center">パスワードリセット</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -108,11 +127,26 @@ const MemberManagementPage = () => {
                 <TableCell>{user.name}</TableCell>
                 <TableCell>{getRoleDisplayName(user.role)}</TableCell>
                 <TableCell>{user.totalWorkHours} 時間</TableCell>
+                <TableCell align="center">
+                  <Button 
+                    variant="outlined" 
+                    size="small"
+                    onClick={() => handlePasswordReset(user.id)}
+                  >
+                    パスワードリセット
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        message={snackbarMessage}
+      />
     </Container>
   );
 };
