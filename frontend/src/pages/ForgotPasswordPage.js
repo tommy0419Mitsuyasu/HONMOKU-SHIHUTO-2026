@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 import { TextField, Button, Typography, Container, Box, Alert } from '@mui/material';
+import { toHalfWidth } from '../utils/stringUtils';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -48,7 +49,7 @@ const ForgotPasswordPage = () => {
             autoComplete="email"
             autoFocus
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setEmail(toHalfWidth(e.target.value))}
           />
           <Button
             type="submit"

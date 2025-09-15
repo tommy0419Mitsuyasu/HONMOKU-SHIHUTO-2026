@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { TextField, Button, Typography, Container, Box, Alert, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { toHalfWidth } from '../utils/stringUtils';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -15,8 +16,14 @@ const RegisterPage = () => {
 
   const { name, email, password, role } = formData;
 
-  const onChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    if (name === 'email') {
+      setFormData({ ...formData, [name]: toHalfWidth(value) });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
