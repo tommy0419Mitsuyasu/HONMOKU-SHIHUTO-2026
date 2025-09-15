@@ -15,11 +15,13 @@ const LoginPage = () => {
   const { email, password } = formData;
 
   const onChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleEmailBlur = (e) => {
     const { name, value } = e.target;
     if (name === 'email') {
       setFormData({ ...formData, [name]: toHalfWidth(value) });
-    } else {
-      setFormData({ ...formData, [name]: value });
     }
   };
 
@@ -63,6 +65,7 @@ const LoginPage = () => {
             autoFocus
             value={email}
             onChange={onChange}
+            onBlur={handleEmailBlur}
           />
           <TextField
             margin="normal"

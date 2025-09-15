@@ -49,7 +49,8 @@ const ForgotPasswordPage = () => {
             autoComplete="email"
             autoFocus
             value={email}
-            onChange={(e) => setEmail(toHalfWidth(e.target.value))}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={(e) => setEmail(toHalfWidth(e.target.value))}
           />
           <Button
             type="submit"
