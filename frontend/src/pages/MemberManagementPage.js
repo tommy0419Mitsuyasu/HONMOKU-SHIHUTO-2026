@@ -18,8 +18,10 @@ import {
   FormControl, 
   InputLabel,
   Button,
-  Snackbar
+  Snackbar,
+  IconButton
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const MemberManagementPage = () => {
   const [users, setUsers] = useState([]);
@@ -61,8 +63,8 @@ const MemberManagementPage = () => {
     }
   };
 
-  const handlePasswordReset = async (userId) => {
-    if (window.confirm('このユーザーにパスワードリセットメールを送信しますか？')) {
+  const handlePasswordReset = async (userId, name) => {
+    if (window.confirm(`${name}さんにパスワードリセットメールを送信しますか？`)) {
       try {
         const token = localStorage.getItem('token');
         const config = { headers: { 'x-auth-token': token } };
@@ -71,6 +73,22 @@ const MemberManagementPage = () => {
         setSnackbarOpen(true);
       } catch (err) {
         setError(err.response?.data?.message || '処理中にエラーが発生しました。');
+      }
+    }
+  };
+
+  const handleDeleteUser = async (id, name) => {
+    if (window.confirm(`${name}さんの情報を完全に削除します。この操作は元に戻せません。よろしいですか？`)) {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { 'x-auth-token': token } };
+        const res = await api.delete(`/users/${id}`, config);
+        setSnackbarMessage(res.data.message);
+        setSnackbarOpen(true);
+        // 削除されたユーザーを一覧から取り除く
+        setUsers(users.filter(user => user.id !== id));
+      } catch (err) {
+        setError(err.response?.data?.message || 'ユーザーの削除に失敗しました。');
       }
     }
   };
@@ -115,7 +133,7 @@ const MemberManagementPage = () => {
               <TableCell>名前</TableCell>
               <TableCell>役割</TableCell>
               <TableCell>総労働時間（当月）</TableCell>
-              <TableCell align="center">パスワードリセット</TableCell>
+              <TableCell align="center">操作</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -128,13 +146,23 @@ const MemberManagementPage = () => {
                 <TableCell>{getRoleDisplayName(user.role)}</TableCell>
                 <TableCell>{user.totalWorkHours} 時間</TableCell>
                 <TableCell align="center">
-                  <Button 
-                    variant="outlined" 
-                    size="small"
-                    onClick={() => handlePasswordReset(user.id)}
-                  >
-                    パスワードリセット
-                  </Button>
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <Button 
+                      variant="outlined" 
+                      size="small"
+                      onClick={() => handlePasswordReset(user.id, user.name)}
+                      sx={{ mr: 1 }}
+                    >
+                      パスワードリセット
+                    </Button>
+                    <IconButton 
+                      aria-label="delete"
+                      color="error"
+                      onClick={() => handleDeleteUser(user.id, user.name)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}

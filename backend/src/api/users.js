@@ -125,4 +125,39 @@ router.post('/:id/forgot-password', [auth, admin], async (req, res) => {
   }
 });
 
+// @route   DELETE /api/users/:id
+// @desc    ユーザーを関連データごと削除する
+// @access  Private (Admin)
+router.delete('/:id', [auth, admin], async (req, res) => {
+  const { id } = req.params;
+  const client = await db.getClient();
+
+  try {
+    await client.query('BEGIN'); // トランザクション開始
+
+    // 関連データの削除
+    await client.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [id]);
+    await client.query('DELETE FROM shift_requests WHERE user_id = $1', [id]);
+    await client.query('DELETE FROM shifts WHERE user_id = $1', [id]);
+
+    // ユーザー本体の削除
+    const deleteResult = await client.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
+
+    if (deleteResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: '該当するユーザーが見つかりません。' });
+    }
+
+    await client.query('COMMIT'); // トランザクション確定
+    res.json({ message: 'ユーザー情報を正常に削除しました。' });
+
+  } catch (error) {
+    await client.query('ROLLBACK'); // エラー時はロールバック
+    console.error(error);
+    res.status(500).json({ message: 'ユーザー情報の削除中にエラーが発生しました。' });
+  } finally {
+    client.release(); // コネクションをプールに返却
+  }
+});
+
 module.exports = router;
