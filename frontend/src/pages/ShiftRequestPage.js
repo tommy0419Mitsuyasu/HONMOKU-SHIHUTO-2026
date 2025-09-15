@@ -22,7 +22,7 @@ const ShiftRequestPage = () => {
       const config = { headers: { 'x-auth-token': token } };
       // 自分の希望シフトと確定シフトを取得
       const [requestsRes, confirmedRes] = await Promise.all([
-        api.get('/shifts/my-requests', config), // Note: This endpoint needs to be created
+        api.get('/shifts/my-requests', config),
         api.get('/shifts/my-shifts', config)
       ]);
 

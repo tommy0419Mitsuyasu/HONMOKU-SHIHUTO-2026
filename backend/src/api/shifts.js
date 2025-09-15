@@ -325,21 +325,6 @@ router.get('/my-work-summary', auth, async (req, res) => {
   }
 });
 
-// @route   DELETE api/shifts/:id
-// @desc    確定シフトを削除する
-// @access  Private (Admin)
-router.delete('/:id', [auth, admin], async (req, res) => {
-  try {
-    const result = await db.query('DELETE FROM shifts WHERE id = $1 RETURNING id', [req.params.id]);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ message: '該当するシフトが見つかりません。' });
-    }
-    res.json({ message: 'シフトが削除されました。' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
-  }
-});
 
 // @route   DELETE api/shifts/requests/:id
 // @desc    希望シフトを削除する
