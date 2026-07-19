@@ -12,7 +12,7 @@ CREATE TABLE profiles (
   full_name TEXT NOT NULL,
   email TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
-  staff_type TEXT CHECK (staff_type IN ('high_school', 'university', 'general')),
+  staff_type TEXT CHECK (staff_type IN ('high_school', 'general')),
   is_minor BOOLEAN NOT NULL DEFAULT false,
   hourly_wage INTEGER NOT NULL DEFAULT 1163,
   is_active BOOLEAN NOT NULL DEFAULT true,
@@ -60,8 +60,8 @@ CREATE POLICY "Admins can view all profiles" ON profiles
     EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
   );
 
-CREATE POLICY "Users can view own profile" ON profiles
-  FOR SELECT USING (id = auth.uid());
+CREATE POLICY "Anyone can view profiles" ON profiles
+  FOR SELECT USING (true);
 
 CREATE POLICY "Admins can update profiles" ON profiles
   FOR UPDATE USING (
@@ -81,8 +81,8 @@ CREATE POLICY "Admins full access to shifts" ON shifts
     EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
   );
 
-CREATE POLICY "Staff can view own shifts" ON shifts
-  FOR SELECT USING (staff_id = auth.uid());
+CREATE POLICY "Anyone can view all shifts" ON shifts
+  FOR SELECT USING (true);
 
 CREATE POLICY "Staff can insert own shifts" ON shifts
   FOR INSERT WITH CHECK (staff_id = auth.uid());
