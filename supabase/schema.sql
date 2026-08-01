@@ -125,3 +125,11 @@ CREATE TRIGGER profiles_updated_at
 CREATE TRIGGER shifts_updated_at
   BEFORE UPDATE ON shifts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ── Realtime Setup ──
+-- Enable realtime for profiles and shifts tables
+BEGIN;
+  DROP PUBLICATION IF EXISTS supabase_realtime;
+  CREATE PUBLICATION supabase_realtime;
+COMMIT;
+ALTER PUBLICATION supabase_realtime ADD TABLE profiles, shifts;

@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { MOCK_STAFF, MOCK_SHIFTS, MOCK_STAFFING_REQUIREMENTS, DEMO_PASSWORD } from '@/lib/mock-data';
 import { generateId } from '@/lib/utils';
+import { supabase, isDemo } from '@/lib/supabase';
 
 const AuthContext = createContext(null);
 const DataContext = createContext(null);
@@ -14,28 +15,61 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Check for saved session
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('pool_auth') : null;
-    if (saved) {
-      try {
-        setUser(JSON.parse(saved));
-      } catch {}
+    if (isDemo) {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('pool_auth') : null;
+      if (saved) {
+        try {
+          setUser(JSON.parse(saved));
+        } catch {}
+      }
+      setLoading(false);
+    } else {
+      // Supabase auth
+      const checkUser = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          setUser(profile);
+        }
+        setLoading(false);
+      };
+      checkUser();
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (session) {
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          setUser(profile);
+        } else {
+          setUser(null);
+        }
+      });
+      return () => subscription.unsubscribe();
     }
-    setLoading(false);
   }, []);
 
-  const login = useCallback((email, password) => {
-    // Demo mode: check against mock staff
-    const staff = MOCK_STAFF.find(s => s.email === email);
-    if (!staff) return { error: 'メールアドレスが見つかりません' };
-    if (password !== DEMO_PASSWORD) return { error: 'パスワードが正しくありません' };
-    setUser(staff);
-    localStorage.setItem('pool_auth', JSON.stringify(staff));
-    return { user: staff };
+  const login = useCallback(async (email, password) => {
+    if (isDemo) {
+      const staff = MOCK_STAFF.find(s => s.email === email);
+      if (!staff) return { error: 'メールアドレスが見つかりません' };
+      if (password !== DEMO_PASSWORD) return { error: 'パスワードが正しくありません' };
+      setUser(staff);
+      localStorage.setItem('pool_auth', JSON.stringify(staff));
+      return { user: staff };
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error: error.message };
+      return { user: data.user };
+    }
   }, []);
 
-  const logout = useCallback(() => {
-    setUser(null);
-    localStorage.removeItem('pool_auth');
+  const logout = useCallback(async () => {
+    if (isDemo) {
+      setUser(null);
+      localStorage.removeItem('pool_auth');
+    } else {
+      await supabase.auth.signOut();
+      setUser(null);
+    }
   }, []);
 
   return (
@@ -58,15 +92,53 @@ export function DataProvider({ children }) {
   const [requirements, setRequirements] = useState([]);
   const [initialized, setInitialized] = useState(false);
 
-  // Initialize from localStorage or mock data
+  // Initialize data
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const savedShifts = localStorage.getItem('pool_shifts');
-    const savedStaff = localStorage.getItem('pool_staff');
-    setStaff(savedStaff ? JSON.parse(savedStaff) : [...MOCK_STAFF]);
-    setShifts(savedShifts ? JSON.parse(savedShifts) : [...MOCK_SHIFTS]);
-    setRequirements([...MOCK_STAFFING_REQUIREMENTS]);
-    setInitialized(true);
+
+    if (isDemo) {
+      const savedShifts = localStorage.getItem('pool_shifts');
+      const savedStaff = localStorage.getItem('pool_staff');
+      setStaff(savedStaff ? JSON.parse(savedStaff) : [...MOCK_STAFF]);
+      setShifts(savedShifts ? JSON.parse(savedShifts) : [...MOCK_SHIFTS]);
+      setRequirements([...MOCK_STAFFING_REQUIREMENTS]);
+      setInitialized(true);
+    } else {
+      const fetchData = async () => {
+        const [staffRes, shiftsRes, reqsRes] = await Promise.all([
+          supabase.from('profiles').select('*'),
+          supabase.from('shifts').select('*'),
+          supabase.from('staffing_requirements').select('*')
+        ]);
+        
+        if (staffRes.data) setStaff(staffRes.data);
+        if (shiftsRes.data) setShifts(shiftsRes.data);
+        if (reqsRes.data) setRequirements(reqsRes.data);
+        setInitialized(true);
+      };
+      fetchData();
+      
+      // Realtime subscriptions
+      const shiftsSub = supabase.channel('shifts')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, payload => {
+          if (payload.eventType === 'INSERT') setShifts(prev => [...prev, payload.new]);
+          if (payload.eventType === 'UPDATE') setShifts(prev => prev.map(s => s.id === payload.new.id ? payload.new : s));
+          if (payload.eventType === 'DELETE') setShifts(prev => prev.filter(s => s.id !== payload.old.id));
+        })
+        .subscribe();
+        
+      const profilesSub = supabase.channel('profiles')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
+          if (payload.eventType === 'INSERT') setStaff(prev => [...prev, payload.new]);
+          if (payload.eventType === 'UPDATE') setStaff(prev => prev.map(s => s.id === payload.new.id ? payload.new : s));
+        })
+        .subscribe();
+        
+      return () => {
+        supabase.removeChannel(shiftsSub);
+        supabase.removeChannel(profilesSub);
+      };
+    }
   }, []);
 
   // Persist shifts and staff changes
@@ -111,47 +183,76 @@ export function DataProvider({ children }) {
     return result;
   }, [shifts]);
 
-  const createShift = useCallback((shiftData) => {
+  const createShift = useCallback(async (shiftData) => {
     const newShift = {
-      id: generateId(),
       ...shiftData,
       status: 'pending',
       cancel_reason: null,
       approved_by: null,
       approved_at: null,
-      created_at: new Date().toISOString(),
     };
-    setShifts(prev => [...prev, newShift]);
-    return newShift;
+    
+    if (isDemo) {
+      newShift.id = generateId();
+      newShift.created_at = new Date().toISOString();
+      setShifts(prev => [...prev, newShift]);
+      return newShift;
+    } else {
+      const { data, error } = await supabase.from('shifts').insert(newShift).select().single();
+      if (error) {
+        console.error("Error creating shift:", error);
+        throw error;
+      }
+      return data;
+    }
   }, []);
 
-  const updateShiftStatus = useCallback((shiftId, status, extra = {}) => {
-    setShifts(prev => prev.map(s =>
-      s.id === shiftId
-        ? { ...s, status, ...extra, updated_at: new Date().toISOString() }
-        : s
-    ));
+  const updateShiftStatus = useCallback(async (shiftId, status, extra = {}) => {
+    if (isDemo) {
+      setShifts(prev => prev.map(s =>
+        s.id === shiftId
+          ? { ...s, status, ...extra, updated_at: new Date().toISOString() }
+          : s
+      ));
+    } else {
+      await supabase.from('shifts').update({ status, ...extra }).eq('id', shiftId);
+    }
   }, []);
 
-  const deleteShift = useCallback((shiftId) => {
-    setShifts(prev => prev.filter(s => s.id !== shiftId));
+  const deleteShift = useCallback(async (shiftId) => {
+    if (isDemo) {
+      setShifts(prev => prev.filter(s => s.id !== shiftId));
+    } else {
+      await supabase.from('shifts').delete().eq('id', shiftId);
+    }
   }, []);
 
-  const updateShift = useCallback((shiftId, data) => {
-    setShifts(prev => prev.map(s =>
-      s.id === shiftId
-        ? { ...s, ...data, updated_at: new Date().toISOString() }
-        : s
-    ));
+  const updateShift = useCallback(async (shiftId, data) => {
+    if (isDemo) {
+      setShifts(prev => prev.map(s =>
+        s.id === shiftId
+          ? { ...s, ...data, updated_at: new Date().toISOString() }
+          : s
+      ));
+    } else {
+      await supabase.from('shifts').update(data).eq('id', shiftId);
+    }
   }, []);
 
   // Bulk approve
-  const bulkApproveShifts = useCallback((shiftIds, adminId) => {
-    setShifts(prev => prev.map(s =>
-      shiftIds.includes(s.id) && s.status === 'pending'
-        ? { ...s, status: 'approved', approved_by: adminId, approved_at: new Date().toISOString() }
-        : s
-    ));
+  const bulkApproveShifts = useCallback(async (shiftIds, adminId) => {
+    if (isDemo) {
+      setShifts(prev => prev.map(s =>
+        shiftIds.includes(s.id) && s.status === 'pending'
+          ? { ...s, status: 'approved', approved_by: adminId, approved_at: new Date().toISOString() }
+          : s
+      ));
+    } else {
+      await supabase.from('shifts')
+        .update({ status: 'approved', approved_by: adminId, approved_at: new Date().toISOString() })
+        .in('id', shiftIds)
+        .eq('status', 'pending');
+    }
   }, []);
 
   // ── Staff Operations ──
@@ -170,22 +271,39 @@ export function DataProvider({ children }) {
     return staff.find(s => s.id === id) || null;
   }, [staff]);
 
-  const createStaff = useCallback((data) => {
-    const newStaff = {
-      id: generateId(),
-      ...data,
-      role: 'staff',
-      is_active: true,
-      created_at: new Date().toISOString(),
-    };
-    setStaff(prev => [...prev, newStaff]);
-    return newStaff;
+  const createStaff = useCallback(async (data) => {
+    if (isDemo) {
+      const newStaff = {
+        id: generateId(),
+        ...data,
+        role: 'staff',
+        is_active: true,
+        created_at: new Date().toISOString(),
+      };
+      setStaff(prev => [...prev, newStaff]);
+      return newStaff;
+    } else {
+      // In a real app, creating a user also requires calling supabase.auth.signUp via a server route
+      // For this implementation we'll just insert into profiles (assuming auth exists or is handled separately)
+      const newStaff = {
+        ...data,
+        role: 'staff',
+        is_active: true
+      };
+      const { data: res, error } = await supabase.from('profiles').insert(newStaff).select().single();
+      if (error) throw error;
+      return res;
+    }
   }, []);
 
-  const updateStaff = useCallback((staffId, data) => {
-    setStaff(prev => prev.map(s =>
-      s.id === staffId ? { ...s, ...data } : s
-    ));
+  const updateStaff = useCallback(async (staffId, data) => {
+    if (isDemo) {
+      setStaff(prev => prev.map(s =>
+        s.id === staffId ? { ...s, ...data } : s
+      ));
+    } else {
+      await supabase.from('profiles').update(data).eq('id', staffId);
+    }
   }, []);
 
   const resetData = useCallback(() => {
