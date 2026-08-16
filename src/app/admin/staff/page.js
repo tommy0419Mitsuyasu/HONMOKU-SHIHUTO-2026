@@ -6,10 +6,11 @@ import { getStaffTypeLabel, formatCurrency } from '@/lib/utils';
 import './staff.css';
 
 export default function StaffPage() {
-  const { staff, createStaff, updateStaff, initialized } = useData();
+  const { staff, createStaff, updateStaff, deleteStaff, initialized } = useData();
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all'); // all, high_school, university, general
+  const [typeFilter, setTypeFilter] = useState('all'); // all, high_school, general
+  const [submitError, setSubmitError] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
@@ -17,6 +18,7 @@ export default function StaffPage() {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
+    password: '',
     staff_type: 'general',
     is_minor: false,
     hourly_wage: 1100
@@ -49,11 +51,13 @@ export default function StaffPage() {
       setFormData({
         full_name: '',
         email: '',
+        password: '',
         staff_type: 'general',
         is_minor: false,
         hourly_wage: 1100
       });
     }
+    setSubmitError('');
     setIsModalOpen(true);
   };
 
@@ -78,12 +82,31 @@ export default function StaffPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editingStaff) {
-      await updateStaff(editingStaff.id, formData);
-    } else {
-      await createStaff(formData);
+    setSubmitError('');
+    try {
+      if (editingStaff) {
+        const { password, ...updateData } = formData;
+        await updateStaff(editingStaff.id, updateData);
+      } else {
+        await createStaff(formData);
+      }
+      handleCloseModal();
+    } catch (err) {
+      console.error('Staff save error:', err);
+      setSubmitError(err.message || '保存に失敗しました');
     }
-    handleCloseModal();
+  };
+
+  const handleDelete = async (staffMember) => {
+    if (!window.confirm(`${staffMember.full_name}さんを削除してもよろしいですか？\nこの操作は取り消せません。`)) {
+      return;
+    }
+    try {
+      await deleteStaff(staffMember.id);
+    } catch (err) {
+      console.error('Staff delete error:', err);
+      alert(err.message || '削除に失敗しました');
+    }
   };
 
   if (loading) return <div className="loading-screen"><div className="spinner"></div></div>;
@@ -107,7 +130,6 @@ export default function StaffPage() {
           <div className="filter-group">
             <button className={`filter-btn ${typeFilter === 'all' ? 'active' : ''}`} onClick={() => setTypeFilter('all')}>全員</button>
             <button className={`filter-btn ${typeFilter === 'high_school' ? 'active' : ''}`} onClick={() => setTypeFilter('high_school')}>高校生</button>
-            <button className={`filter-btn ${typeFilter === 'university' ? 'active' : ''}`} onClick={() => setTypeFilter('university')}>大学生</button>
             <button className={`filter-btn ${typeFilter === 'general' ? 'active' : ''}`} onClick={() => setTypeFilter('general')}>一般</button>
           </div>
         </div>
@@ -138,6 +160,7 @@ export default function StaffPage() {
                 <td><span className={`badge ${s.is_active ? 'badge-approved' : 'badge-cancelled'}`}>{s.is_active ? '有効' : '無効'}</span></td>
                 <td>
                   <button className="btn btn-sm btn-ghost" onClick={() => handleOpenModal(s)}>編集</button>
+                  <button className="btn btn-sm btn-danger" style={{ marginLeft: '4px' }} onClick={() => handleDelete(s)}>削除</button>
                 </td>
               </tr>
             ))}
@@ -155,6 +178,7 @@ export default function StaffPage() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h2 className="modal-title">{editingStaff ? 'スタッフ情報編集' : '新規スタッフ登録'}</h2>
             <form className="modal-form" onSubmit={handleSubmit}>
+              {submitError && <div className="alert alert-error">{submitError}</div>}
               <div className="form-group">
                 <label className="form-label">氏名</label>
                 <input required type="text" name="full_name" className="form-input" value={formData.full_name} onChange={handleChange} />
@@ -163,11 +187,16 @@ export default function StaffPage() {
                 <label className="form-label">メールアドレス</label>
                 <input required type="email" name="email" className="form-input" value={formData.email} onChange={handleChange} />
               </div>
+              {!editingStaff && (
+                <div className="form-group">
+                  <label className="form-label">パスワード（6文字以上）</label>
+                  <input required type="password" name="password" className="form-input" minLength={6} value={formData.password} onChange={handleChange} />
+                </div>
+              )}
               <div className="form-group">
                 <label className="form-label">スタッフ種別</label>
                 <select name="staff_type" className="form-select" value={formData.staff_type} onChange={handleChange}>
                   <option value="high_school">高校生</option>
-                  <option value="university">大学生</option>
                   <option value="general">一般</option>
                 </select>
               </div>

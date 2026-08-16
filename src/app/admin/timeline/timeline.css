@@ -217,6 +217,113 @@
 
 .timeline-tooltip {
   display: none;
+}
+
+/* Rotation View Styles */
+.rotation-container {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.rotation-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.rotation-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.rotation-table-wrapper {
+  background: white; /* PDF export needs white background */
+  color: #333; /* Dark text for contrast */
+  padding: 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.rotation-date-header {
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 15px;
+  color: #111;
+}
+
+.rotation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: center;
+  border: 2px solid #333;
+}
+
+.rotation-table th,
+.rotation-table td {
+  border: 1px solid #777;
+  padding: 6px 4px;
+}
+
+.rotation-table th {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+.rotation-table .staff-col {
+  width: 120px;
+  text-align: left;
+  padding-left: 10px;
+  font-weight: bold;
+  background-color: #f9f9f9;
+}
+
+.rotation-table .time-col {
+  width: 40px;
+  text-align: center;
+  font-weight: bold;
+  background-color: #f9f9f9;
+}
+
+/* Tabs */
+.view-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  color: var(--text-primary);
+  background: rgba(0, 198, 255, 0.1);
+  box-shadow: 0 0 10px rgba(0, 198, 255, 0.2);
+}
+
+.timeline-tooltip {
+  display: none;
   position: absolute;
   bottom: 100%;
   left: 50%;

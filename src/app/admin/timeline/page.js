@@ -6,6 +6,7 @@ import { getToday, getHourlyHeadcount, getRequiredCount, formatDateWithDay } fro
 import DatePicker from 'react-datepicker';
 import { ja } from 'date-fns/locale/ja';
 import 'react-datepicker/dist/react-datepicker.css';
+import RotationView from './RotationView';
 import './timeline.css';
 
 export default function TimelinePage() {
@@ -17,6 +18,7 @@ export default function TimelinePage() {
     pending: true,
     cancel_requested: true
   });
+  const [activeTab, setActiveTab] = useState('timeline'); // 'timeline' or 'rotation'
 
   useEffect(() => {
     if (initialized) setLoading(false);
@@ -115,76 +117,95 @@ export default function TimelinePage() {
         </div>
       </div>
 
-      <div className="timeline-container">
-        <div className="timeline-scroll-wrapper">
-          <div className="timeline-header">
-            <div className="timeline-staff-col">スタッフ</div>
-            <div className="timeline-grid-area">
-              <div className="timeline-grid">
-                {hours.map(h => (
-                  <div key={h} className="hour-marker">{h}:00</div>
-                ))}
+      <div className="view-tabs">
+        <button 
+          className={`tab-btn ${activeTab === 'timeline' ? 'active' : ''}`}
+          onClick={() => setActiveTab('timeline')}
+        >
+          ガントチャート
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'rotation' ? 'active' : ''}`}
+          onClick={() => setActiveTab('rotation')}
+        >
+          ローテーション表
+        </button>
+      </div>
+
+      {activeTab === 'timeline' ? (
+        <div className="timeline-container">
+          <div className="timeline-scroll-wrapper">
+            <div className="timeline-header">
+              <div className="timeline-staff-col">スタッフ</div>
+              <div className="timeline-grid-area">
+                <div className="timeline-grid">
+                  {hours.map(h => (
+                    <div key={h} className="hour-marker">{h}:00</div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="timeline-row heatmap-row">
-            <div className="timeline-staff-col">必要人数 / 現在</div>
-            <div className="timeline-grid-area">
-              <div className="timeline-grid">
-                {heatmapData.map((data, i) => (
-                  <div 
-                    key={i} 
-                    className={`heatmap-cell ${data.sufficient ? 'sufficient' : 'deficient'}`}
-                  >
-                    {data.count} / {data.req}
-                  </div>
-                ))}
+            <div className="timeline-row heatmap-row">
+              <div className="timeline-staff-col">必要人数 / 現在</div>
+              <div className="timeline-grid-area">
+                <div className="timeline-grid">
+                  {heatmapData.map((data, i) => (
+                    <div 
+                      key={i} 
+                      className={`heatmap-cell ${data.sufficient ? 'sufficient' : 'deficient'}`}
+                    >
+                      {data.count} / {data.req}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="timeline-body">
-            {staffShifts.length === 0 ? (
-              <div className="empty-state" style={{ marginTop: '40px' }}>
-                <div className="empty-icon">📅</div>
-                <div className="empty-title">シフトがありません</div>
-              </div>
-            ) : (
-              staffShifts.map(({ staff: st, shifts }) => (
-                <div key={st.id} className="timeline-row">
-                  <div className="timeline-staff-col">{st.full_name}</div>
-                  <div className="timeline-grid-area">
-                    <div className="timeline-grid staff-row-grid">
-                      {shifts.map(shift => {
-                        const startCol = hourToCol(shift.start_time);
-                        const endCol = hourToCol(shift.end_time);
-                        const colSpan = endCol - startCol;
-                        
-                        return (
-                          <div 
-                            key={shift.id}
-                            className={`shift-bar ${shift.status}`}
-                            style={{
-                              left: `calc(${(startCol - 1) / 72 * 100}%)`,
-                              width: `calc(${colSpan / 72 * 100}%)`
-                            }}
-                          >
-                            {shift.start_time} - {shift.end_time}
-                            <div className="timeline-tooltip">
-                              {shift.start_time} - {shift.end_time} ({shift.status})
+            <div className="timeline-body">
+              {staffShifts.length === 0 ? (
+                <div className="empty-state" style={{ marginTop: '40px' }}>
+                  <div className="empty-icon">📅</div>
+                  <div className="empty-title">シフトがありません</div>
+                </div>
+              ) : (
+                staffShifts.map(({ staff: st, shifts }) => (
+                  <div key={st.id} className="timeline-row">
+                    <div className="timeline-staff-col">{st.full_name}</div>
+                    <div className="timeline-grid-area">
+                      <div className="timeline-grid staff-row-grid">
+                        {shifts.map(shift => {
+                          const startCol = hourToCol(shift.start_time);
+                          const endCol = hourToCol(shift.end_time);
+                          const colSpan = endCol - startCol;
+                          
+                          return (
+                            <div 
+                              key={shift.id}
+                              className={`shift-bar ${shift.status}`}
+                              style={{
+                                left: `calc(${(startCol - 1) / 72 * 100}%)`,
+                                width: `calc(${colSpan / 72 * 100}%)`
+                              }}
+                            >
+                              {shift.start_time} - {shift.end_time}
+                              <div className="timeline-tooltip">
+                                {shift.start_time} - {shift.end_time} ({shift.status})
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <RotationView shifts={shifts} staff={staff} date={selectedDate} />
+      )}
     </div>
   );
 }

@@ -26,9 +26,12 @@ export function AuthProvider({ children }) {
     } else {
       // Supabase auth
       const checkUser = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+        console.log('[Auth] Checking existing session...');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log('[Auth] Session:', session ? 'found' : 'none', sessionError || '');
         if (session) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          console.log('[Auth] Profile fetch result:', profile, profileError);
           setUser(profile);
         }
         setLoading(false);
@@ -36,8 +39,10 @@ export function AuthProvider({ children }) {
       checkUser();
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        console.log('[Auth] onAuthStateChange event:', _event, 'session:', session ? 'yes' : 'no');
         if (session) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          console.log('[Auth] Profile from onAuthStateChange:', profile, profileError);
           setUser(profile);
         } else {
           setUser(null);
@@ -48,6 +53,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async (email, password) => {
+    console.log('[Login] isDemo:', isDemo, 'email:', email);
     if (isDemo) {
       const staff = MOCK_STAFF.find(s => s.email === email);
       if (!staff) return { error: 'メールアドレスが見つかりません' };
@@ -56,7 +62,9 @@ export function AuthProvider({ children }) {
       localStorage.setItem('pool_auth', JSON.stringify(staff));
       return { user: staff };
     } else {
+      console.log('[Login] Calling supabase.auth.signInWithPassword...');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log('[Login] Result:', data, 'Error:', error);
       if (error) return { error: error.message };
       return { user: data.user };
     }
@@ -273,9 +281,10 @@ export function DataProvider({ children }) {
 
   const createStaff = useCallback(async (data) => {
     if (isDemo) {
+      const { password, ...staffData } = data;
       const newStaff = {
         id: generateId(),
-        ...data,
+        ...staffData,
         role: 'staff',
         is_active: true,
         created_at: new Date().toISOString(),
@@ -283,16 +292,15 @@ export function DataProvider({ children }) {
       setStaff(prev => [...prev, newStaff]);
       return newStaff;
     } else {
-      // In a real app, creating a user also requires calling supabase.auth.signUp via a server route
-      // For this implementation we'll just insert into profiles (assuming auth exists or is handled separately)
-      const newStaff = {
-        ...data,
-        role: 'staff',
-        is_active: true
-      };
-      const { data: res, error } = await supabase.from('profiles').insert(newStaff).select().single();
-      if (error) throw error;
-      return res;
+      const res = await fetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      setStaff(prev => [...prev, result.staff]);
+      return result.staff;
     }
   }, []);
 
@@ -303,6 +311,20 @@ export function DataProvider({ children }) {
       ));
     } else {
       await supabase.from('profiles').update(data).eq('id', staffId);
+      setStaff(prev => prev.map(s =>
+        s.id === staffId ? { ...s, ...data } : s
+      ));
+    }
+  }, []);
+
+  const deleteStaff = useCallback(async (staffId) => {
+    if (isDemo) {
+      setStaff(prev => prev.filter(s => s.id !== staffId));
+    } else {
+      const res = await fetch(`/api/staff?id=${staffId}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      setStaff(prev => prev.filter(s => s.id !== staffId));
     }
   }, []);
 
@@ -316,7 +338,7 @@ export function DataProvider({ children }) {
   const value = {
     staff, shifts, requirements, initialized,
     getShifts, createShift, updateShiftStatus, deleteShift, updateShift, bulkApproveShifts,
-    getStaff, getStaffById, createStaff, updateStaff,
+    getStaff, getStaffById, createStaff, updateStaff, deleteStaff,
     resetData,
   };
 
