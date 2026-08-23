@@ -16,7 +16,7 @@ function getAdminClient() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { full_name, email, password, staff_type, is_minor, hourly_wage } = body;
+    const { full_name, email, password, role, staff_type, is_minor, hourly_wage } = body;
 
     if (!full_name || !email || !password) {
       return NextResponse.json({ error: '氏名・メール・パスワードは必須です' }, { status: 400 });
@@ -40,7 +40,7 @@ export async function POST(request) {
       id: authData.user.id,
       full_name,
       email,
-      role: 'staff',
+      role: role === 'admin' ? 'admin' : 'staff',
       staff_type: staff_type || 'general',
       is_minor: is_minor || false,
       hourly_wage: hourly_wage || 1163,

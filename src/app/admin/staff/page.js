@@ -19,6 +19,7 @@ export default function StaffPage() {
     full_name: '',
     email: '',
     password: '',
+    role: 'staff',
     staff_type: 'general',
     is_minor: false,
     hourly_wage: 1100
@@ -31,8 +32,12 @@ export default function StaffPage() {
   const filteredStaff = useMemo(() => {
     return staff.filter(s => {
       const matchSearch = s.full_name.includes(searchTerm) || s.email.includes(searchTerm);
-      const matchType = typeFilter === 'all' || s.staff_type === typeFilter;
-      return matchSearch && matchType && s.role !== 'admin';
+      let matchType = false;
+      if (typeFilter === 'all') matchType = true;
+      else if (typeFilter === 'admin') matchType = s.role === 'admin';
+      else matchType = s.staff_type === typeFilter && s.role !== 'admin';
+      
+      return matchSearch && matchType;
     });
   }, [staff, searchTerm, typeFilter]);
 
@@ -42,6 +47,7 @@ export default function StaffPage() {
       setFormData({
         full_name: staffMember.full_name,
         email: staffMember.email,
+        role: staffMember.role || 'staff',
         staff_type: staffMember.staff_type,
         is_minor: staffMember.is_minor,
         hourly_wage: staffMember.hourly_wage
@@ -52,6 +58,7 @@ export default function StaffPage() {
         full_name: '',
         email: '',
         password: '',
+        role: 'staff',
         staff_type: 'general',
         is_minor: false,
         hourly_wage: 1100
@@ -129,6 +136,7 @@ export default function StaffPage() {
           />
           <div className="filter-group">
             <button className={`filter-btn ${typeFilter === 'all' ? 'active' : ''}`} onClick={() => setTypeFilter('all')}>全員</button>
+            <button className={`filter-btn ${typeFilter === 'admin' ? 'active' : ''}`} onClick={() => setTypeFilter('admin')}>管理者</button>
             <button className={`filter-btn ${typeFilter === 'high_school' ? 'active' : ''}`} onClick={() => setTypeFilter('high_school')}>高校生</button>
             <button className={`filter-btn ${typeFilter === 'general' ? 'active' : ''}`} onClick={() => setTypeFilter('general')}>一般</button>
           </div>
@@ -142,7 +150,7 @@ export default function StaffPage() {
             <tr>
               <th>名前</th>
               <th>メール</th>
-              <th>種別</th>
+              <th>権限/種別</th>
               <th>18歳未満</th>
               <th>時給</th>
               <th>ステータス</th>
@@ -154,9 +162,13 @@ export default function StaffPage() {
               <tr key={s.id}>
                 <td style={{ fontWeight: 600 }}>{s.full_name}</td>
                 <td style={{ color: 'var(--text-secondary)' }}>{s.email}</td>
-                <td><span className="badge">{getStaffTypeLabel(s.staff_type)}</span></td>
+                <td>
+                  <span className={`badge ${s.role === 'admin' ? 'badge-primary' : ''}`}>
+                    {s.role === 'admin' ? '管理者' : getStaffTypeLabel(s.staff_type)}
+                  </span>
+                </td>
                 <td>{s.is_minor ? '✓' : '−'}</td>
-                <td>{formatCurrency(s.hourly_wage)}</td>
+                <td>{s.role === 'admin' ? '−' : formatCurrency(s.hourly_wage)}</td>
                 <td><span className={`badge ${s.is_active ? 'badge-approved' : 'badge-cancelled'}`}>{s.is_active ? '有効' : '無効'}</span></td>
                 <td>
                   <button className="btn btn-sm btn-ghost" onClick={() => handleOpenModal(s)}>編集</button>
@@ -194,22 +206,33 @@ export default function StaffPage() {
                 </div>
               )}
               <div className="form-group">
-                <label className="form-label">スタッフ種別</label>
-                <select name="staff_type" className="form-select" value={formData.staff_type} onChange={handleChange}>
-                  <option value="high_school">高校生</option>
-                  <option value="general">一般</option>
+                <label className="form-label">権限</label>
+                <select name="role" className="form-select" value={formData.role} onChange={handleChange}>
+                  <option value="staff">一般スタッフ</option>
+                  <option value="admin">管理者 (Admin)</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input type="checkbox" name="is_minor" checked={formData.is_minor} onChange={handleChange} disabled={formData.staff_type === 'high_school'} />
-                  18歳未満 (深夜勤務制限あり)
-                </label>
-              </div>
-              <div className="form-group">
-                <label className="form-label">時給 (円)</label>
-                <input required type="number" name="hourly_wage" className="form-input" min="1000" step="10" value={formData.hourly_wage} onChange={handleChange} />
-              </div>
+              {formData.role === 'staff' && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">スタッフ種別</label>
+                    <select name="staff_type" className="form-select" value={formData.staff_type} onChange={handleChange}>
+                      <option value="high_school">高校生</option>
+                      <option value="general">一般</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="checkbox-label">
+                      <input type="checkbox" name="is_minor" checked={formData.is_minor} onChange={handleChange} disabled={formData.staff_type === 'high_school'} />
+                      18歳未満 (深夜勤務制限あり)
+                    </label>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">時給 (円)</label>
+                    <input required type="number" name="hourly_wage" className="form-input" min="1000" step="10" value={formData.hourly_wage} onChange={handleChange} />
+                  </div>
+                </>
+              )}
               <div className="modal-actions" style={{ marginTop: '24px' }}>
                 <button type="button" className="btn btn-ghost" onClick={handleCloseModal}>キャンセル</button>
                 <button type="submit" className="btn btn-primary">{editingStaff ? '更新する' : '登録する'}</button>
