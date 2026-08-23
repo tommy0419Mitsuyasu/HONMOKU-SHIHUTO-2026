@@ -90,7 +90,6 @@ CREATE POLICY "Staff can insert own shifts" ON shifts
 CREATE POLICY "Staff can update own shifts" ON shifts
   FOR UPDATE USING (
     staff_id = auth.uid()
-    AND (status = 'pending' OR status = 'approved')
   );
 
 CREATE POLICY "Staff can delete own pending shifts" ON shifts

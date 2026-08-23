@@ -92,6 +92,26 @@ export default function StaffLayout({ children }) {
       <main className="staff-main page-enter">
         {children}
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="mobile-bottom-nav">
+        <ul className="mobile-nav-list">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || (item.href !== '/staff' && pathname.startsWith(item.href));
+            return (
+              <li key={item.href} className="mobile-nav-item">
+                <Link 
+                  href={item.href} 
+                  className={`mobile-nav-link ${isActive ? 'active' : ''}`}
+                >
+                  <span className="mobile-nav-icon">{item.icon}</span>
+                  <span className="mobile-nav-label">{item.label}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
     </div>
   );
 }

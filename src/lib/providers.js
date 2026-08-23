@@ -223,7 +223,11 @@ export function DataProvider({ children }) {
           : s
       ));
     } else {
-      await supabase.from('shifts').update({ status, ...extra }).eq('id', shiftId);
+      const { error } = await supabase.from('shifts').update({ status, ...extra }).eq('id', shiftId);
+      if (error) {
+        console.error("Error updating shift status:", error);
+        throw error;
+      }
     }
   }, []);
 
@@ -231,7 +235,8 @@ export function DataProvider({ children }) {
     if (isDemo) {
       setShifts(prev => prev.filter(s => s.id !== shiftId));
     } else {
-      await supabase.from('shifts').delete().eq('id', shiftId);
+      const { error } = await supabase.from('shifts').delete().eq('id', shiftId);
+      if (error) throw error;
     }
   }, []);
 
@@ -243,7 +248,11 @@ export function DataProvider({ children }) {
           : s
       ));
     } else {
-      await supabase.from('shifts').update(data).eq('id', shiftId);
+      const { error } = await supabase.from('shifts').update(data).eq('id', shiftId);
+      if (error) {
+        console.error("Error updating shift:", error);
+        throw error;
+      }
     }
   }, []);
 

@@ -7,10 +7,11 @@ import DatePicker from 'react-datepicker';
 import { ja } from 'date-fns/locale/ja';
 import 'react-datepicker/dist/react-datepicker.css';
 import RotationView from './RotationView';
+import AdminShiftModal from './AdminShiftModal';
 import './timeline.css';
 
 export default function TimelinePage() {
-  const { shifts, staff, requirements, initialized } = useData();
+  const { shifts, staff, requirements, initialized, createShift, updateShift, deleteShift } = useData();
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [filters, setFilters] = useState({
@@ -20,12 +21,33 @@ export default function TimelinePage() {
   });
   const [activeTab, setActiveTab] = useState('timeline'); // 'timeline' or 'rotation'
 
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingShift, setEditingShift] = useState(null);
+
   useEffect(() => {
     if (initialized) setLoading(false);
   }, [initialized]);
 
   const toggleFilter = (status) => {
     setFilters(prev => ({ ...prev, [status]: !prev[status] }));
+  };
+
+  const handleOpenModal = (shift = null) => {
+    setEditingShift(shift);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveShift = async (shiftData, shiftId) => {
+    if (shiftId) {
+      await updateShift(shiftId, shiftData);
+    } else {
+      await createShift(shiftData);
+    }
+  };
+
+  const handleDeleteShift = async (shiftId) => {
+    await deleteShift(shiftId);
   };
 
   const hourToCol = (time) => {
@@ -78,9 +100,14 @@ export default function TimelinePage() {
 
   return (
     <div className="page-enter timeline-page">
-      <div className="page-header">
-        <h1 className="page-title">タイムライン</h1>
-        <p className="page-subtitle">シフトのガントチャート表示</p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 className="page-title">タイムライン</h1>
+          <p className="page-subtitle">シフトのガントチャート・ローテーション表示</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+          + 新規シフト追加
+        </button>
       </div>
 
       <div className="timeline-controls">
@@ -185,8 +212,10 @@ export default function TimelinePage() {
                               className={`shift-bar ${shift.status}`}
                               style={{
                                 left: `calc(${(startCol - 1) / 72 * 100}%)`,
-                                width: `calc(${colSpan / 72 * 100}%)`
+                                width: `calc(${colSpan / 72 * 100}%)`,
+                                cursor: 'pointer'
                               }}
+                              onClick={() => handleOpenModal(shift)}
                             >
                               {shift.start_time} - {shift.end_time}
                               <div className="timeline-tooltip">
@@ -204,8 +233,23 @@ export default function TimelinePage() {
           </div>
         </div>
       ) : (
-        <RotationView shifts={shifts} staff={staff} date={selectedDate} />
+        <RotationView 
+          shifts={shifts} 
+          staff={staff} 
+          date={selectedDate} 
+          onOpenModal={handleOpenModal} 
+        />
       )}
+
+      <AdminShiftModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveShift}
+        onDelete={handleDeleteShift}
+        staffList={staff.filter(s => s.role === 'staff' && s.is_active)}
+        initialData={editingShift}
+        defaultDate={selectedDate}
+      />
     </div>
   );
 }

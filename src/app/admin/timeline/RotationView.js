@@ -4,7 +4,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import './timeline.css';
 
-export default function RotationView({ shifts, staff, date }) {
+export default function RotationView({ shifts, staff, date, onOpenModal }) {
   const dayTableRef = useRef(null);
   const nightTableRef = useRef(null);
 
@@ -65,8 +65,8 @@ export default function RotationView({ shifts, staff, date }) {
     if (pos === '掃除') return '#888888'; // Grey
     if (pos === '休憩') return '#00E5FF'; // Cyan
     if (pos === 'St') return '#FFEB3B'; // Yellow
-    if (pos === 'F') return '#E0E0E0'; // Light grey fallback
-    // T1-T4, B, 上, 下, etc
+    if (pos === '当割') return '#E0E0E0'; // Light grey
+    // 横, T1-T4, B, 上, 下, etc
     return '#FF9800'; 
   };
 
@@ -116,9 +116,16 @@ export default function RotationView({ shifts, staff, date }) {
             ))}
             
             {/* スタッフ枠 */}
-            {rotationData.rows.map(row => (
+            {rotationData.rows.filter(row => row.startMins < slots[slots.length - 1].end && row.endMins > slots[0].start).map(row => (
               <tr key={row.staff.id}>
-                <td className="staff-col" style={{ color: 'red' }}>{row.staff.full_name}</td>
+                <td 
+                  className="staff-col" 
+                  style={{ color: 'red', cursor: 'pointer', textDecoration: 'underline' }}
+                  onClick={() => onOpenModal(row.shift)}
+                  title="シフトを編集"
+                >
+                  {row.staff.full_name}
+                </td>
                 <td>{row.shift.start_time}</td>
                 <td>{row.shift.end_time}</td>
                 <td>{row.durationHours}</td>

@@ -113,6 +113,113 @@
   margin-bottom: 1rem;
 }
 
+.text-warning-dark { color: #b45309; }
+.text-success-dark { color: #15803d; }
+.text-orange-dark { color: #c2410c; }
+.text-gray-600 { color: #4b5563; }
+
+/* Calendar Styles */
+.staff-calendar {
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.calendar-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background-color: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.calendar-weekday {
+  background-color: var(--surface);
+  text-align: center;
+  padding: 10px 5px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.calendar-cell {
+  background-color: var(--bg-deep);
+  min-height: 100px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-cell-disabled {
+  background-color: rgba(255, 255, 255, 0.02);
+  opacity: 0.5;
+}
+
+.calendar-cell-today {
+  background-color: rgba(0, 198, 255, 0.05);
+}
+
+.calendar-cell-today .calendar-cell-date {
+  background-color: var(--primary);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: -2px 0 0 -2px;
+}
+
+.calendar-cell-date {
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 5px;
+  color: var(--text-secondary);
+}
+
+.calendar-cell-shifts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calendar-shift-item {
+  border-radius: 4px;
+  padding: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border-left-width: 3px;
+  border-left-style: solid;
+  transition: transform 0.1s;
+}
+
+.calendar-shift-item:hover {
+  transform: scale(1.02);
+}
+
+.shift-time {
+  font-weight: bold;
+}
+
+.shift-status {
+  font-size: 0.65rem;
+  opacity: 0.9;
+}
+
 .text-danger { color: var(--danger, #ef4444); }
 .text-warning { color: var(--warning, #f59e0b); }
 .text-sm { font-size: 0.875rem; }

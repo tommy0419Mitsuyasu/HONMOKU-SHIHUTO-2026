@@ -32,6 +32,8 @@ export function generateRotation(shifts, staffList) {
   // Setup staff rows
   const rowsMap = new Map();
 
+  const breakCounts = {};
+
   shifts.forEach((shift, index) => {
     const staff = staffList.find(st => st.id === shift.staff_id);
     if (!staff) return;
@@ -48,15 +50,36 @@ export function generateRotation(shifts, staffList) {
     if (durationMins >= 360) {
       let idealBreakMins = start + Math.floor((durationMins / 2) / 30) * 30;
       
-      // 掃除時間(17:00-18:00, 20:30-21:30)と被らないように調整
-      if (idealBreakMins >= 1020 && idealBreakMins < 1080) {
-        idealBreakMins = 960; // 16:00
-      } else if (idealBreakMins >= 1230 && idealBreakMins < 1290) {
-        idealBreakMins = 1170; // 19:30
+      const maxConcurrentBreaks = Math.max(1, Math.floor(shifts.length / 3));
+
+      // 掃除時間と被らないように調整する関数
+      const adjustForCleaning = (mins) => {
+        if (mins >= 1020 && mins < 1080) return 960; // 16:00
+        if (mins >= 1230 && mins < 1290) return 1170; // 19:30
+        return mins;
+      };
+
+      idealBreakMins = adjustForCleaning(idealBreakMins);
+
+      // 休憩時間の分散（最大1時間前後）
+      const offsets = [0, -30, 30, -60, 60];
+      for (const offset of offsets) {
+         let candidate = adjustForCleaning(idealBreakMins + offset);
+         let count = breakCounts[candidate] || 0;
+         if (count < maxConcurrentBreaks) {
+            breakStart = candidate;
+            breakCounts[candidate] = count + 1;
+            break;
+         }
       }
       
-      breakStart = idealBreakMins;
-      breakEnd = idealBreakMins + 60;
+      // 分散できなかった場合はそのまま
+      if (breakStart === -1) {
+         breakStart = idealBreakMins;
+         breakCounts[idealBreakMins] = (breakCounts[idealBreakMins] || 0) + 1;
+      }
+      
+      breakEnd = breakStart + 60;
     }
 
     rowsMap.set(staff.id, {
@@ -68,6 +91,7 @@ export function generateRotation(shifts, staffList) {
       hasBreak: breakStart !== -1,
       breakStart,
       breakEnd,
+      originalBreakStart: breakStart,
       assignments: {},
       activeSlots: index % 2,
     });
@@ -90,26 +114,36 @@ export function generateRotation(shifts, staffList) {
 
     // Fixed rules overrides
     if (isPreparation) {
-      workingNow.forEach(row => { row.assignments[slot.label] = '準備'; });
+      workingNow.forEach(row => { row.assignments[slot.label] = '準備'; row.lastPosition = '準備'; });
       return;
     }
     if (isCleaning) {
-      workingNow.forEach(row => { row.assignments[slot.label] = '掃除'; });
+      workingNow.forEach(row => { row.assignments[slot.label] = '掃除'; row.lastPosition = '掃除'; });
       return;
     }
 
     // Process breaks and St
     const availableForDuty = [];
     workingNow.forEach(row => {
+      // 休憩の割り当て
       if (row.breakStart !== -1 && tMins >= row.breakStart && tMins < row.breakEnd) {
         row.assignments[slot.label] = '休憩';
+        row.lastPosition = '休憩';
+        row.activeSlots = 0; // 休憩中は連続勤務カウントをリセット（休憩直後のStを防ぐ）
         return;
       }
-      if (row.activeSlots >= 2) {
+      
+      // 次の枠が休憩かどうかを判定（休憩直前のStを防ぐため）
+      const isNextSlotBreak = row.breakStart !== -1 && (tMins + 30) >= row.breakStart && (tMins + 30) < row.breakEnd;
+
+      // 連続勤務（2枠以上）で、かつ次が休憩でない場合はSt
+      if (row.activeSlots >= 2 && !isNextSlotBreak) {
         row.assignments[slot.label] = 'St';
+        row.lastPosition = 'St';
         row.activeSlots = 0;
         return;
       }
+      
       availableForDuty.push(row);
     });
 
@@ -120,28 +154,91 @@ export function generateRotation(shifts, staffList) {
       positions.push('B');
     }
 
-    if (totalStaffCount >= 14) {
-      positions.push('T1', 'T2', 'T3', 'T4');
-    } else if (totalStaffCount >= 10 && totalStaffCount <= 13) {
+    // メインプール（上、下は最優先で常に生成）
+    positions.push('上', '下');
+
+    // 「St」や「休憩」を除いた、実際に監視に入れる人数で枠数を決定
+    const activeStaffCount = availableForDuty.length;
+
+    // T1〜T4 (人数による変動)
+    if (activeStaffCount >= 14) {
+      positions.push('T3', 'T4', 'T1', 'T2');
+    } else if (activeStaffCount >= 10 && activeStaffCount <= 13) {
       positions.push('T3', 'T4', 'T1', 'T2');
     }
 
-    positions.push('上', '下', '階下', '渚', '後方');
+    // 人数によるその他のポジション
+    if (activeStaffCount <= 9) {
+      // 9人以下：Tは生成せず、後方・横を必ず入れる
+      positions.push('後方', '横');
+    } else {
+      // 10人以上：従来通り（階下・渚は廃止されたため削除）
+      positions.push('後方');
+    }
 
+    // DAYプールのみ
     if (tMins < 1080) {
       positions.push('K', 'A');
     }
 
     const uniquePositions = [...new Set(positions)];
-    availableForDuty.sort((a, b) => b.activeSlots - a.activeSlots);
+    const positionsCount = uniquePositions.length;
 
-    availableForDuty.forEach(row => {
-      if (uniquePositions.length > 0) {
-        row.assignments[slot.label] = uniquePositions.shift();
-      } else {
-        row.assignments[slot.label] = 'F';
-      }
-      row.activeSlots++;
+    // 1. 誰を監視ポジションに入れ、誰を当割にするか決定する
+    // activeSlotsが「少ない」人（休んでいた人）を優先してポジションに入れることで、
+    // 全員が同時に activeSlots=2 に到達してStが大量発生（全滅）するのを防ぐ。
+    availableForDuty.sort((a, b) => a.activeSlots - b.activeSlots);
+
+    const workingStaff = availableForDuty.slice(0, positionsCount);
+    const touwariStaff = availableForDuty.slice(positionsCount);
+
+    // 2. ポジションに入る人の中では、連続勤務時間が「長い」人ほど優先度の高い（配列の前の）ポジションを割り当て
+    workingStaff.sort((a, b) => b.activeSlots - a.activeSlots);
+
+    const assignedThisSlot = [];
+
+    // 先にポジションを割り当て
+    workingStaff.forEach(row => {
+      let assignedPos = null;
+
+      // 直前のポジションと違うものを探す
+      const validIndex = uniquePositions.findIndex(p => p !== row.lastPosition);
+      
+      if (validIndex !== -1) {
+        assignedPos = uniquePositions.splice(validIndex, 1)[0];
+      } else if (uniquePositions.length > 0) {
+        const forcedPos = uniquePositions[0];
+        
+        // 既に割り当てられた他のスタッフと交換できないか探す
+        const swapCandidate = assignedThisSlot.find(other => 
+          other.assignedPos !== forcedPos && 
+          other.row.lastPosition !== forcedPos
+        );
+        
+        if (swapCandidate) {
+          // 交換成立
+          assignedPos = swapCandidate.assignedPos; 
+          swapCandidate.row.assignments[slot.label] = forcedPos; 
+          swapCandidate.row.lastPosition = forcedPos;
+          swapCandidate.assignedPos = forcedPos;
+          uniquePositions.shift();
+        } else {
+          // 交換もできない場合は仕方なく連続割り当て
+          assignedPos = uniquePositions.shift();
+        }
+      } 
+      
+      row.assignments[slot.label] = assignedPos;
+      row.lastPosition = assignedPos;
+      row.activeSlots++; // 監視ポジションに入ったので連続勤務カウントを加算
+      assignedThisSlot.push({ row, assignedPos });
+    });
+
+    // 余った人は「当割」
+    touwariStaff.forEach(row => {
+      row.assignments[slot.label] = '当割';
+      row.lastPosition = '当割';
+      row.activeSlots = 0; // 当割は監視業務ではないので、連続勤務カウントをリセットして休ませる
     });
   });
 

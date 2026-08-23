@@ -37,19 +37,22 @@ export function formatDateWithDay(dateStr) {
 }
 
 /**
- * Get today's date string in YYYY-MM-DD format
+ * Get today's date string in YYYY-MM-DD format (JST)
  */
 export function getToday() {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return localDate.toISOString().split('T')[0];
 }
 
 /**
- * Get date string offset from today
+ * Get date string offset from today (JST)
  */
 export function getDateOffset(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return localDate.toISOString().split('T')[0];
 }
 
 /**

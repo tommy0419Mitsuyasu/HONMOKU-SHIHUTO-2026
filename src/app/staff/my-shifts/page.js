@@ -8,16 +8,25 @@ import { validateMinorShift, getShiftValidationSummary } from '@/lib/validators'
 import DatePicker from 'react-datepicker';
 import { ja } from 'date-fns/locale/ja';
 import 'react-datepicker/dist/react-datepicker.css';
+import StaffCalendarView from './StaffCalendarView';
+import StaffRotationView from './StaffRotationView';
 import './my-shifts.css';
 
 export default function MyShifts() {
   const { user, loading: authLoading } = useAuth();
-  const { getShifts, deleteShift, updateShiftStatus, updateShift, initialized } = useData();
+  const { staff, getShifts, deleteShift, updateShiftStatus, updateShift, createShift, initialized } = useData();
   const router = useRouter();
 
+  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
   const [activeTab, setActiveTab] = useState('all');
   const [editingShift, setEditingShift] = useState(null);
   const [cancelingShift, setCancelingShift] = useState(null);
+  const [selectedShiftDetails, setSelectedShiftDetails] = useState(null); // For calendar click
+  
+  // Submit Form State (from Calendar)
+  const [submittingDate, setSubmittingDate] = useState(null);
+  const [submitStart, setSubmitStart] = useState('09:00');
+  const [submitEnd, setSubmitEnd] = useState('17:00');
   
   // Edit Form State
   const [editDate, setEditDate] = useState('');
@@ -72,32 +81,77 @@ export default function MyShifts() {
     setEditEnd(shift.end_time);
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    updateShift(editingShift.id, {
-      work_date: editDate,
-      start_time: editStart,
-      end_time: editEnd
-    });
-    setEditingShift(null);
-  };
-
-  const handleDeleteClick = (shift) => {
-    if (confirm('このシフトを取り消してもよろしいですか？')) {
-      deleteShift(shift.id);
+    try {
+      await updateShift(editingShift.id, {
+        work_date: editDate,
+        start_time: editStart,
+        end_time: editEnd,
+        status: 'pending'
+      });
+      setEditingShift(null);
+      alert('シフトの変更依頼を送信しました。管理者の承認をお待ちください。');
+    } catch (err) {
+      alert(err.message || 'シフトの更新に失敗しました');
     }
   };
 
-  const handleCancelReqSubmit = (e) => {
+  const handleDeleteClick = async (shift) => {
+    if (confirm('このシフトを取り消してもよろしいですか？')) {
+      try {
+        await deleteShift(shift.id);
+      } catch (err) {
+        alert(err.message || 'シフトの削除に失敗しました');
+      }
+    }
+  };
+
+  const handleCancelReqSubmit = async (e) => {
     e.preventDefault();
     if (!cancelReason.trim()) return;
-    updateShiftStatus(cancelingShift.id, 'cancel_requested', { cancel_reason: cancelReason });
-    setCancelingShift(null);
-    setCancelReason('');
+    try {
+      await updateShiftStatus(cancelingShift.id, 'cancel_requested', { cancel_reason: cancelReason });
+      setCancelingShift(null);
+      setCancelReason('');
+      alert('取消依頼を送信しました。');
+    } catch (err) {
+      alert(err.message || '取消依頼の送信に失敗しました');
+    }
+  };
+
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault();
+    if (!submittingDate) return;
+    
+    try {
+      await createShift({
+        staff_id: user.id,
+        work_date: submittingDate,
+        start_time: submitStart,
+        end_time: submitEnd
+      });
+      setSubmittingDate(null);
+      alert('シフトを提出しました！');
+    } catch (err) {
+      alert(err.message || 'シフトの提出に失敗しました');
+    }
   };
 
   const timeOptions = generateTimeOptions();
   const today = getToday();
+
+  // Submit Validation
+  let submitMinorError = null;
+  if (user?.is_minor && submittingDate) {
+    const existingForSubmit = getShifts({ staffId: user.id, excludeStatus: 'cancelled' });
+    const minorResultSubmit = validateMinorShift({ startTime: submitStart, endTime: submitEnd, workDate: submittingDate, existingShifts: existingForSubmit });
+    if (!minorResultSubmit.valid) {
+      submitMinorError = minorResultSubmit.errors[0];
+    }
+  }
+  const submitBasicValidation = getShiftValidationSummary(submitStart, submitEnd);
+  const isSubmitValid = calculateHours(submitStart, submitEnd) > 0 && !submitMinorError && submitBasicValidation?.valid !== false;
 
   // Edit Validation
   let editMinorError = null;
@@ -119,59 +173,106 @@ export default function MyShifts() {
         <p className="page-subtitle">シフトの確認・変更ができます。</p>
       </div>
 
-      <div className="my-shifts-filters">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            className={`my-shifts-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-            <span className="my-shifts-count">{tab.count}</span>
-          </button>
-        ))}
+      <div className="view-tabs" style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+        <button 
+          className={`btn ${viewMode === 'calendar' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setViewMode('calendar')}
+        >
+          📅 カレンダー
+        </button>
+        <button 
+          className={`btn ${viewMode === 'rotation' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setViewMode('rotation')}
+        >
+          📋 本日のローテ
+        </button>
       </div>
 
-      {filteredShifts.length === 0 ? (
-        <div className="empty-state glass-card">
-          <div className="empty-icon">📂</div>
-          <h3 className="empty-title">シフトが見つかりません</h3>
-        </div>
+      {viewMode === 'calendar' ? (
+        <StaffCalendarView 
+          shifts={allShifts} 
+          onShiftClick={(shift) => setSelectedShiftDetails(shift)} 
+          onDateClick={(dateStr) => {
+            if (dateStr >= today) {
+              setSubmittingDate(dateStr);
+              setSubmitStart('09:00');
+              setSubmitEnd('17:00');
+            } else {
+              alert('過去の日付のシフトは提出できません。');
+            }
+          }}
+        />
       ) : (
-        <div className="my-shifts-list">
-          {filteredShifts.map(shift => (
-            <div key={shift.id} className="my-shifts-card glass-card">
-              <div className="my-shifts-date">
-                <span className="date-text">{formatDateWithDay(shift.work_date)}</span>
-              </div>
-              <div className="my-shifts-details">
-                <div className="my-shifts-time">
-                  <span className="time-icon">⏰</span>
-                  {shift.start_time} 〜 {shift.end_time}
-                  <span className="my-shifts-hours">({calculateHours(shift.start_time, shift.end_time).toFixed(1)}h)</span>
-                </div>
-                <div className="my-shifts-status">
-                  <span className={`badge ${getStatusBadgeClass(shift.status)}`}>
-                    {getStatusLabel(shift.status)}
-                  </span>
-                </div>
-              </div>
-              <div className="my-shifts-actions">
-                {shift.status === 'pending' && (
-                  <>
-                    <button className="btn btn-sm btn-ghost" onClick={() => handleEditClick(shift)}>編集</button>
-                    <button className="btn btn-sm btn-danger" onClick={() => handleDeleteClick(shift)}>取り消す</button>
-                  </>
-                )}
-                {shift.status === 'approved' && shift.work_date >= today && (
-                  <button className="btn btn-sm btn-warning" onClick={() => setCancelingShift(shift)}>取消依頼</button>
-                )}
-                {shift.status === 'cancel_requested' && (
-                  <span className="text-muted text-sm">取消依頼中</span>
-                )}
-              </div>
+        <StaffRotationView 
+          allShifts={getShifts()} 
+          allStaff={staff} 
+          user={user} 
+        />
+      )}
+
+      {/* Selected Shift Details Modal (from Calendar) */}
+      {selectedShiftDetails && (
+        <div className="modal-overlay" onClick={() => setSelectedShiftDetails(null)}>
+          <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
+            <h2 className="modal-title">シフト詳細</h2>
+            <div className="mb-4">
+              <p><strong>日付:</strong> {formatDateWithDay(selectedShiftDetails.work_date)}</p>
+              <p><strong>時間:</strong> {selectedShiftDetails.start_time} 〜 {selectedShiftDetails.end_time} ({calculateHours(selectedShiftDetails.start_time, selectedShiftDetails.end_time).toFixed(1)}h)</p>
+              <p>
+                <strong>ステータス:</strong> <span className={`badge ${getStatusBadgeClass(selectedShiftDetails.status)}`}>{getStatusLabel(selectedShiftDetails.status)}</span>
+              </p>
             </div>
-          ))}
+            <div className="modal-actions" style={{ justifyContent: 'flex-start' }}>
+              {(selectedShiftDetails.status === 'pending' || (selectedShiftDetails.status === 'approved' && selectedShiftDetails.work_date >= today)) && (
+                <button className="btn btn-primary" onClick={() => { handleEditClick(selectedShiftDetails); setSelectedShiftDetails(null); }}>時間を変更する</button>
+              )}
+              {selectedShiftDetails.status === 'pending' && (
+                <button className="btn btn-danger" onClick={() => { handleDeleteClick(selectedShiftDetails); setSelectedShiftDetails(null); }}>取り消す</button>
+              )}
+              {selectedShiftDetails.status === 'approved' && selectedShiftDetails.work_date >= today && (
+                <button className="btn btn-warning" onClick={() => { setCancelingShift(selectedShiftDetails); setSelectedShiftDetails(null); }}>完全取消を依頼</button>
+              )}
+              <button className="btn btn-ghost" onClick={() => setSelectedShiftDetails(null)} style={{ marginLeft: 'auto' }}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit New Shift Modal (from Calendar) */}
+      {submittingDate && (
+        <div className="modal-overlay" onClick={() => setSubmittingDate(null)}>
+          <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
+            <h2 className="modal-title">シフトの提出</h2>
+            <p className="mb-4"><strong>{formatDateWithDay(submittingDate)}</strong> のシフトを提出します。</p>
+            <form onSubmit={handleCreateSubmit}>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">開始時刻</label>
+                  <select className="form-select" value={submitStart} onChange={e => setSubmitStart(e.target.value)}>
+                    {timeOptions.map(t => <option key={`sub-start-${t}`} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">終了時刻</label>
+                  <select className="form-select" value={submitEnd} onChange={e => setSubmitEnd(e.target.value)}>
+                    {timeOptions.map(t => <option key={`sub-end-${t}`} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {submitBasicValidation?.valid === false ? (
+                <div className="alert alert-warning">{submitBasicValidation.message}</div>
+              ) : (
+                <div className="text-center text-muted mb-3"><strong>{submitBasicValidation?.message}</strong></div>
+              )}
+              {submitMinorError && <div className="alert alert-error">{submitMinorError}</div>}
+
+              <div className="modal-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setSubmittingDate(null)}>キャンセル</button>
+                <button type="submit" className="btn btn-primary" disabled={!isSubmitValid}>提出する</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
