@@ -70,8 +70,9 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
         <button className="btn btn-ghost" onClick={handleNextMonth}>次月 &gt;</button>
       </div>
 
-      <div className="calendar-grid">
-        {/* Weekdays */}
+      <div className="calendar-scroll-wrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div className="calendar-grid" style={{ minWidth: '600px' }}>
+          {/* Weekdays */}
         {['日', '月', '火', '水', '木', '金', '土'].map((day, idx) => (
           <div key={day} className={`calendar-weekday ${idx === 0 ? 'text-danger' : idx === 6 ? 'text-primary' : ''}`}>
             {day}
@@ -123,6 +124,7 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );
