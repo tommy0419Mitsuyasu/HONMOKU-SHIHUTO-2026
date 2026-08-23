@@ -81,8 +81,6 @@ export default function ShiftSubmit() {
     return <div className="loading-screen"><div className="spinner"></div></div>;
   }
 
-  const selectedDateShifts = existingShifts.filter(s => s.work_date === workDate);
-
   // Get current month dates with shifts for mini calendar
   const currentMonth = workDate ? workDate.slice(0, 7) : today.slice(0, 7);
   const shiftDates = new Set(existingShifts.filter(s => s.work_date.startsWith(currentMonth)).map(s => s.work_date));
