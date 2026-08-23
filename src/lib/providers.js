@@ -211,6 +211,11 @@ export function DataProvider({ children }) {
         console.error("Error creating shift:", error);
         throw error;
       }
+      setShifts(prev => {
+        // Prevent duplicate if realtime event fired first
+        if (prev.some(s => s.id === data.id)) return prev;
+        return [...prev, data];
+      });
       return data;
     }
   }, []);
