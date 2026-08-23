@@ -127,6 +127,27 @@ export default function AdminLayout({ children }) {
       <main className="admin-main page-enter">
         {children}
       </main>
+
+      <nav className="mobile-bottom-nav">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+          return (
+            <Link 
+              key={item.href}
+              href={item.href} 
+              className={`mobile-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <div className="mobile-nav-icon">
+                {item.icon}
+                {item.badge && (
+                  <span className="mobile-badge">{item.badge}</span>
+                )}
+              </div>
+              <span className="mobile-nav-label">{item.label.replace('ダッシュボード', 'ホーム').replace('スタッフ管理', 'スタッフ')}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

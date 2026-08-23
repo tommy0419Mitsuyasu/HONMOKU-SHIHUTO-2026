@@ -45,8 +45,11 @@ export default function ShiftSubmit() {
     }
   }
 
+  const selectedDateShifts = existingShifts.filter(s => s.work_date === workDate);
+  const alreadySubmitted = selectedDateShifts.length > 0;
+
   const basicValidation = getShiftValidationSummary(startTime, endTime);
-  const isValid = hours > 0 && !minorError && basicValidation?.valid !== false;
+  const isValid = hours > 0 && !minorError && basicValidation?.valid !== false && !alreadySubmitted;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -156,6 +159,13 @@ export default function ShiftSubmit() {
               <div className="alert alert-error">
                 <span className="alert-icon">⛔</span>
                 {minorError}
+              </div>
+            )}
+
+            {alreadySubmitted && (
+              <div className="alert alert-error">
+                <span className="alert-icon">⛔</span>
+                この日のシフトはすでに提出済みです。
               </div>
             )}
 
