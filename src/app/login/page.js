@@ -40,10 +40,6 @@ export default function LoginPage() {
     }
   };
 
-  const fillDemo = (demoEmail) => {
-    setEmail(demoEmail);
-    setPassword('demo1234');
-  };
 
   if (loading) {
     return (
@@ -111,33 +107,6 @@ export default function LoginPage() {
               {isSubmitting ? <span className="spinner" style={{ width: '1.2rem', height: '1.2rem', borderWidth: '2px' }}></span> : 'ログイン'}
             </button>
           </form>
-          
-          <div className="demo-info">
-            <h3 className="demo-info-title">ℹ️ デモ用アカウント (クリックで入力)</h3>
-            <div className="demo-accounts">
-              <div className="demo-account">
-                <span className="demo-account-role">管理者</span>
-                <span className="demo-account-email" onClick={() => fillDemo('admin@honmoku-pool.jp')}>
-                  admin@honmoku-pool.jp
-                </span>
-              </div>
-              <div className="demo-account">
-                <span className="demo-account-role">スタッフ (大学生)</span>
-                <span className="demo-account-email" onClick={() => fillDemo('sato@example.com')}>
-                  sato@example.com
-                </span>
-              </div>
-              <div className="demo-account">
-                <span className="demo-account-role">スタッフ (高校生)</span>
-                <span className="demo-account-email" onClick={() => fillDemo('suzuki@example.com')}>
-                  suzuki@example.com
-                </span>
-              </div>
-            </div>
-            <div className="demo-password">
-              共通パスワード: <strong>demo1234</strong>
-            </div>
-          </div>
         </div>
       </div>
     </div>
