@@ -121,6 +121,10 @@
 }
 
 @media (max-width: 768px) {
+  .staff-sidebar {
+    display: none;
+  }
+  
   .staff-main {
     margin-left: 0;
     padding: 1rem;

@@ -19,6 +19,7 @@ export default function ShiftSubmit() {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const today = getToday();
   const timeOptions = generateTimeOptions();
@@ -51,21 +52,29 @@ export default function ShiftSubmit() {
   const basicValidation = getShiftValidationSummary(startTime, endTime);
   const isValid = hours > 0 && !minorError && basicValidation?.valid !== false && !alreadySubmitted;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isValid) return;
+    if (!isValid || isSubmitting) return;
 
-    createShift({
-      staff_id: user.id,
-      work_date: workDate,
-      start_time: startTime,
-      end_time: endTime
-    });
+    setIsSubmitting(true);
+    try {
+      await createShift({
+        staff_id: user.id,
+        work_date: workDate,
+        start_time: startTime,
+        end_time: endTime
+      });
 
-    setSuccessMsg('シフトを提出しました！');
-    setTimeout(() => {
-      setSuccessMsg('');
-    }, 3000);
+      setSuccessMsg('シフトを提出しました！');
+      setTimeout(() => {
+        setSuccessMsg('');
+      }, 3000);
+    } catch (err) {
+      console.error(err);
+      alert('エラーが発生しました');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (authLoading || !initialized || !user) {
@@ -172,9 +181,9 @@ export default function ShiftSubmit() {
             <button 
               type="submit" 
               className="btn btn-primary btn-lg submit-btn"
-              disabled={!isValid || !workDate}
+              disabled={!isValid || !workDate || isSubmitting}
             >
-              提出する
+              {isSubmitting ? '送信中...' : '提出する'}
             </button>
           </form>
         </div>
