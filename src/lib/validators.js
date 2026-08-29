@@ -95,21 +95,6 @@ export function validateMinorShift({ startTime, endTime, workDate, existingShift
     }
   }
 
-  // 3. Weekly 40-hour check
-  const weekStart = getWeekStart(workDate);
-  const weekEnd = getWeekEnd(workDate);
-  const weekShifts = otherShifts.filter(s => s.work_date >= weekStart && s.work_date <= weekEnd);
-  const existingWeekHours = weekShifts.reduce((sum, s) => sum + calculateHours(s.start_time, s.end_time), 0);
-  const totalWeekHours = existingWeekHours + newShiftHours;
-
-  if (totalWeekHours > 40) {
-    if (existingWeekHours > 0) {
-      errors.push(`18歳未満のスタッフは1週40時間を超えて勤務できません（週内の既存シフト: ${existingWeekHours.toFixed(1)}時間 + 今回: ${newShiftHours.toFixed(1)}時間 = 合計: ${totalWeekHours.toFixed(1)}時間）`);
-    } else {
-      errors.push(`18歳未満のスタッフは1週40時間を超えて勤務できません（今回の申請: ${totalWeekHours.toFixed(1)}時間）`);
-    }
-  }
-
   return {
     valid: errors.length === 0,
     errors,
