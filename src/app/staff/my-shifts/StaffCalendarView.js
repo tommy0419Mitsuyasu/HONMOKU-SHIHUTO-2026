@@ -116,8 +116,12 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
                       onShiftClick(shift);
                     }}
                   >
-                    <div className="shift-time">{shift.start_time.substring(0,5)} - {shift.end_time.substring(0,5)}</div>
-                    <div className="shift-status">{getStatusLabel(shift.status)}</div>
+                    <div className="shift-time" style={{ textAlign: 'center', lineHeight: 1.2 }}>
+                      {shift.start_time.substring(0,5)}<br/>
+                      <span style={{ opacity: 0.5, fontSize: '0.8em' }}>〜</span><br/>
+                      {shift.end_time.substring(0,5)}
+                    </div>
+                    <div className="shift-status" style={{ textAlign: 'center', marginTop: '4px' }}>{getStatusLabel(shift.status)}</div>
                   </div>
                 ))}
               </div>
