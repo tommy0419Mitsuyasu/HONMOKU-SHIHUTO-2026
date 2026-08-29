@@ -31,31 +31,71 @@ export default function StaffDashboard() {
     );
   }
 
-  const today = getToday();
-  const currentMonth = today.slice(0, 7);
+  // === 給与月（給与計算期間）のロジック ===
+  const todayDate = new Date();
+  
+  // 現在の給与月を判定（11日〜翌月10日を基準とする）
+  // 今日が 2026/08/29 の場合、8月11日〜9月10日の期間なので「2026-08」とする
+  let defaultYear = todayDate.getFullYear();
+  let defaultMonth = todayDate.getMonth() + 1; // 1-12
+  if (todayDate.getDate() <= 10) {
+    // 10日以前なら、前月分としてカウント
+    defaultMonth -= 1;
+    if (defaultMonth === 0) {
+      defaultMonth = 12;
+      defaultYear -= 1;
+    }
+  }
+  const defaultMonthStr = `${defaultYear}-${String(defaultMonth).padStart(2, '0')}`;
+  
+  const [selectedPeriod, setSelectedPeriod] = useState(defaultMonthStr);
 
-  // Filter for this month
-  const thisMonthShifts = shifts.filter(s => 
-    s.work_date.startsWith(currentMonth) && 
+  const getPayrollPeriod = (yearMonthStr) => {
+    if (yearMonthStr === 'all') return { start: '1970-01-01', end: '2100-12-31' };
+    const [year, month] = yearMonthStr.split('-').map(Number);
+    // 指定月の11日 〜 翌月の10日
+    const startDate = new Date(year, month - 1, 11);
+    const endDate = new Date(year, month, 10);
+    
+    const formatD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return { start: formatD(startDate), end: formatD(endDate) };
+  };
+
+  // 選択肢の生成（今年の前半から来月まで）
+  const periodOptions = [{ value: 'all', label: 'すべての期間（合計）' }];
+  for (let i = -6; i <= 2; i++) {
+    const d = new Date(defaultYear, defaultMonth - 1 + i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const val = `${y}-${String(m).padStart(2, '0')}`;
+    periodOptions.push({ value: val, label: `${y}年${m}月度 (${m}/11 〜 ${m === 12 ? 1 : m + 1}/10)` });
+  }
+
+  const currentPayrollBounds = getPayrollPeriod(selectedPeriod);
+
+  // Filter for selected period
+  const periodShifts = shifts.filter(s => 
+    s.work_date >= currentPayrollBounds.start && 
+    s.work_date <= currentPayrollBounds.end &&
     s.status !== 'cancelled'
   );
 
-  const thisMonthHours = thisMonthShifts.reduce((total, s) => {
+  const periodHours = periodShifts.reduce((total, s) => {
     return total + calculateHours(s.start_time, s.end_time);
   }, 0);
 
-  const thisMonthIncome = thisMonthHours * (user.hourly_wage || 0);
+  const periodIncome = periodHours * (user.hourly_wage || 0);
 
   // Upcoming shifts (approved, from today onwards)
   const upcomingShifts = shifts
-    .filter(s => s.status === 'approved' && s.work_date >= today)
+    .filter(s => s.status === 'approved' && s.work_date >= getToday())
     .sort((a, b) => a.work_date.localeCompare(b.work_date) || a.start_time.localeCompare(b.start_time))
     .slice(0, 5);
 
-  // Status counts (this month)
-  const pendingCount = thisMonthShifts.filter(s => s.status === 'pending').length;
-  const approvedCount = thisMonthShifts.filter(s => s.status === 'approved').length;
-  const cancelReqCount = thisMonthShifts.filter(s => s.status === 'cancel_requested').length;
+  // Status counts (for the selected period)
+  const pendingCount = periodShifts.filter(s => s.status === 'pending').length;
+  const approvedCount = periodShifts.filter(s => s.status === 'approved').length;
+  const cancelReqCount = periodShifts.filter(s => s.status === 'cancel_requested').length;
 
   return (
     <div className="page-enter">
@@ -69,26 +109,40 @@ export default function StaffDashboard() {
         </div>
       </div>
 
+      <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ fontSize: '1.1rem', margin: 0 }}>給与期間の選択</h2>
+        <select 
+          className="form-input" 
+          style={{ width: 'auto', minWidth: '200px' }}
+          value={selectedPeriod}
+          onChange={(e) => setSelectedPeriod(e.target.value)}
+        >
+          {periodOptions.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="grid-3 dashboard-stats">
         <div className="stat-card glass-card">
           <div className="stat-icon icon-blue">📅</div>
           <div className="stat-content">
-            <div className="stat-label">今月のシフト数</div>
-            <div className="stat-value">{thisMonthShifts.length}件</div>
+            <div className="stat-label">{selectedPeriod === 'all' ? '合計シフト数' : '期間内のシフト数'}</div>
+            <div className="stat-value">{periodShifts.length}件</div>
           </div>
         </div>
         <div className="stat-card glass-card">
           <div className="stat-icon icon-green">⏰</div>
           <div className="stat-content">
-            <div className="stat-label">今月の勤務時間</div>
-            <div className="stat-value">{thisMonthHours.toFixed(1)}h</div>
+            <div className="stat-label">{selectedPeriod === 'all' ? '合計勤務時間' : '期間内の勤務時間'}</div>
+            <div className="stat-value">{periodHours.toFixed(1)}h</div>
           </div>
         </div>
         <div className="stat-card glass-card">
           <div className="stat-icon icon-gold">💰</div>
           <div className="stat-content">
-            <div className="stat-label">今月の見込み収入</div>
-            <div className="stat-value">{formatCurrency(thisMonthIncome)}</div>
+            <div className="stat-label">{selectedPeriod === 'all' ? '合計見込み収入' : '期間内の見込み収入'}</div>
+            <div className="stat-value">{formatCurrency(periodIncome)}</div>
           </div>
         </div>
       </div>
@@ -122,7 +176,7 @@ export default function StaffDashboard() {
         </div>
 
         <div className="dashboard-section status-section">
-          <h2 className="section-title">今月のステータス</h2>
+          <h2 className="section-title">{selectedPeriod === 'all' ? '全体のステータス' : '期間内のステータス'}</h2>
           <div className="status-grid">
             <div className="status-item glass-card">
               <div className="status-label">未承認</div>
