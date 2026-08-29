@@ -11,9 +11,9 @@ export function generateRotation(shifts, staffList) {
     return `${h.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
   };
 
-  // Fixed bounds: 08:00 to 22:00
+  // Fixed bounds: 08:00 to 21:30 (last slot is 21:00-21:30)
   const minTime = 8 * 60; // 480
-  const maxTime = 22 * 60; // 1320
+  const maxTime = 21.5 * 60; // 1290
 
   // Generate 30-min slots
   const slots = [];
