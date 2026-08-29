@@ -12,7 +12,8 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - startDate.getDay()); // Go back to Sunday
+    const daysToSubtract = (startDate.getDay() + 6) % 7;
+    startDate.setDate(startDate.getDate() - daysToSubtract); // Go back to Monday
 
     const days = [];
     let current = new Date(startDate);
@@ -73,8 +74,8 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
       <div className="calendar-scroll-wrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div className="calendar-grid" style={{ minWidth: '100%' }}>
           {/* Weekdays */}
-        {['日', '月', '火', '水', '木', '金', '土'].map((day, idx) => (
-          <div key={day} className={`calendar-weekday ${idx === 0 ? 'text-danger' : idx === 6 ? 'text-primary' : ''}`}>
+        {['月', '火', '水', '木', '金', '土', '日'].map((day, idx) => (
+          <div key={day} className={`calendar-weekday ${idx === 5 ? 'text-primary' : idx === 6 ? 'text-danger' : ''}`}>
             {day}
           </div>
         ))}
