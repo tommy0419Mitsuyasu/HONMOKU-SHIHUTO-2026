@@ -149,13 +149,13 @@ export function generateRotation(shifts, staffList) {
 
     const positions = [];
 
+    // メインプール（上、下は最優先で常に生成）
+    positions.push('上', '下');
+
     // B is mandatory from 10:00 (600), but closed 18:00-18:30 (1080-1110)
     if ((tMins >= 600 && tMins < 1080) || (tMins >= 1110)) {
       positions.push('B');
     }
-
-    // メインプール（上、下は最優先で常に生成）
-    positions.push('上', '下');
 
     // 「St」や「休憩」を除いた、実際に監視に入れる人数で枠数を決定
     const activeStaffCount = availableForDuty.length;
@@ -178,7 +178,7 @@ export function generateRotation(shifts, staffList) {
 
     // DAYプールのみ
     if (tMins < 1080) {
-      positions.push('K', 'A');
+      positions.push('A', 'K');
     }
 
     const uniquePositions = [...new Set(positions)];
