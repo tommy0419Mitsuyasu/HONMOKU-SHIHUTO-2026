@@ -71,8 +71,8 @@ export function calculateHours(startTime, endTime) {
   const [eh, em] = endTime.split(':').map(Number);
   const grossHours = (eh * 60 + em - sh * 60 - sm) / 60;
   
-  // 6時間以上の勤務の場合は1時間の休憩を引く
-  if (grossHours >= 6) {
+  // 6時間を超える勤務の場合は1時間の休憩を引く
+  if (grossHours > 6) {
     return grossHours - 1;
   }
   return grossHours;

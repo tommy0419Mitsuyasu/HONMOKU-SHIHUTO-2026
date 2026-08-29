@@ -46,8 +46,8 @@ export function generateRotation(shifts, staffList) {
     let breakStart = -1;
     let breakEnd = -1;
 
-    // 6時間以上の勤務で1時間（60分）休憩
-    if (durationMins >= 360) {
+    // 6時間を超える勤務で1時間（60分）休憩
+    if (durationMins > 360) {
       let idealBreakMins = start + Math.floor((durationMins / 2) / 30) * 30;
       
       const maxConcurrentBreaks = Math.max(1, Math.floor(shifts.length / 3));

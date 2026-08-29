@@ -11,7 +11,7 @@ export function calculateHours(startTime, endTime) {
   const [eh, em] = endTime.split(':').map(Number);
   const grossHours = (eh * 60 + em - sh * 60 - sm) / 60;
   
-  if (grossHours >= 6) {
+  if (grossHours > 6) {
     return grossHours - 1;
   }
   return grossHours;
@@ -112,8 +112,8 @@ export function getShiftValidationSummary(startTime, endTime) {
   
   if (grossHours <= 0) return { valid: false, message: '終了時刻は開始時刻より後に設定してください' };
   
-  const netHours = grossHours >= 6 ? grossHours - 1 : grossHours;
-  const breakText = grossHours >= 6 ? '（うち休憩1時間）' : '';
+  const netHours = grossHours > 6 ? grossHours - 1 : grossHours;
+  const breakText = grossHours > 6 ? '（うち休憩1時間）' : '';
   
   return { valid: true, hours: netHours, message: `実働時間: ${netHours.toFixed(1)}時間 ${breakText}` };
 }
