@@ -1,5 +1,6 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { generateRotation } from '@/lib/rotation-engine';
+import { useData } from '@/lib/providers';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import './timeline.css';
@@ -7,14 +8,58 @@ import './timeline.css';
 export default function RotationView({ shifts, staff, date, onOpenModal }) {
   const dayTableRef = useRef(null);
   const nightTableRef = useRef(null);
+  
+  const { rotations, saveRotation, deleteRotation } = useData();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [localRotationData, setLocalRotationData] = useState(null);
 
-  const rotationData = useMemo(() => {
+  const savedRotation = useMemo(() => {
+    return rotations.find(r => r.date === date);
+  }, [rotations, date]);
+
+  const autoRotationData = useMemo(() => {
     const displayShifts = shifts.filter(s => 
       s.work_date === date && 
       (s.status === 'approved' || s.status === 'cancel_requested')
     );
     return generateRotation(displayShifts, staff);
   }, [shifts, staff, date]);
+
+  // Sync local data with saved or auto data
+  useEffect(() => {
+    if (savedRotation) {
+      setLocalRotationData(savedRotation.data);
+    } else {
+      // Create a deep copy of auto-generated data so we can mutate it freely
+      setLocalRotationData(JSON.parse(JSON.stringify(autoRotationData)));
+    }
+  }, [savedRotation, autoRotationData]);
+
+  const rotationData = isEditMode ? localRotationData : (savedRotation ? savedRotation.data : autoRotationData);
+
+  const handleSave = async () => {
+    await saveRotation(date, localRotationData);
+    setIsEditMode(false);
+    alert('ローテーションを保存しました');
+  };
+
+  const handleRegenerate = async () => {
+    if (window.confirm('手動での編集内容を破棄し、自動生成の状態に戻しますか？')) {
+      await deleteRotation(date);
+      setIsEditMode(false);
+    }
+  };
+
+  const handleCellChange = (staffId, slotLabel, newPos) => {
+    setLocalRotationData(prev => {
+      const next = { ...prev };
+      const rowIndex = next.rows.findIndex(r => r.staff.id === staffId);
+      if (rowIndex !== -1) {
+        next.rows[rowIndex].assignments[slotLabel] = newPos;
+      }
+      return next;
+    });
+  };
 
   const handleDownloadPDF = async () => {
     if (!dayTableRef.current) return;
@@ -98,6 +143,9 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
 
   const renderTable = (slots, tableRef, title) => {
     if (slots.length === 0) return null;
+    
+    const positionOptions = ['', '上', '下', 'T1', 'T2', 'T3', 'T4', 'B', 'A', 'K', '後方', '横', 'F', 'P1', 'P2', '階下', 'St', '当割', '休憩', '掃除', '準備'];
+    
     return (
       <div className="rotation-table-wrapper" ref={tableRef} style={{ marginBottom: '40px' }}>
         <div className="rotation-date-header">
@@ -125,17 +173,9 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
                 <td></td>
                 <td></td>
                 <td></td>
-                {slots.map(slot => {
-                  // 17:00-18:00, 20:30-21:30 is 掃除
-                  const isCleaning = (slot.start >= 1020 && slot.start < 1080) || (slot.start >= 1230 && slot.start < 1290);
-                  const content = isCleaning ? '掃除' : '';
-                  const bgColor = isCleaning ? '#888888' : '#FFEB3B'; // Yellow for admin empty
-                  return (
-                    <td key={slot.label} style={{ backgroundColor: bgColor, color: isCleaning ? 'white' : 'black', fontWeight: 'bold' }}>
-                      {content}
-                    </td>
-                  );
-                })}
+                {slots.map(slot => (
+                  <td key={slot.label}></td>
+                ))}
               </tr>
             ))}
             
@@ -165,10 +205,33 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
                       style={{ 
                         backgroundColor: isWorking ? bgColor : '#FFFFFF',
                         color: assignment === '掃除' ? 'white' : 'black',
-                        fontWeight: assignment ? 'bold' : 'normal'
+                        fontWeight: assignment ? 'bold' : 'normal',
+                        padding: isEditMode && isWorking ? '0' : undefined
                       }}
                     >
-                      {isWorking ? (assignment || '') : ''}
+                      {isWorking ? (
+                        isEditMode ? (
+                          <select 
+                            value={assignment || ''}
+                            onChange={(e) => handleCellChange(row.staff.id, slot.label, e.target.value)}
+                            style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              border: 'none', 
+                              backgroundColor: 'transparent',
+                              textAlign: 'center',
+                              outline: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {positionOptions.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          assignment || ''
+                        )
+                      ) : ''}
                     </td>
                   );
                 })}
@@ -182,11 +245,29 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
 
   return (
     <div className="rotation-container">
-      <div className="rotation-header-actions">
-        <h2 className="rotation-title">自動生成ローテーション表</h2>
-        <button className="btn btn-primary" onClick={handleDownloadPDF}>
-          📥 PDFダウンロード（DAY/NIGHT一括）
-        </button>
+      <div className="rotation-header-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 className="rotation-title" style={{ margin: 0 }}>
+          {savedRotation ? '手動編集済みローテーション表' : '自動生成ローテーション表'}
+        </h2>
+        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {isEditMode ? (
+            <>
+              <button className="btn btn-ghost" onClick={() => setIsEditMode(false)}>キャンセル</button>
+              <button className="btn btn-success" onClick={handleSave}>💾 保存する</button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-outline" onClick={() => setIsEditMode(true)}>✏️ 編集モード</button>
+              {savedRotation && (
+                <button className="btn btn-danger" onClick={handleRegenerate}>🔄 自動生成に戻す</button>
+              )}
+              <button className="btn btn-primary" onClick={handleDownloadPDF}>
+                📥 PDFダウンロード
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {renderTable(rotationData.daySlots, dayTableRef, 'DAYプール (8:00-17:30)')}

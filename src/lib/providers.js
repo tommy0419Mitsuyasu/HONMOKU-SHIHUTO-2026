@@ -98,6 +98,7 @@ export function DataProvider({ children }) {
   const [staff, setStaff] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [requirements, setRequirements] = useState([]);
+  const [rotations, setRotations] = useState([]);
   const [initialized, setInitialized] = useState(false);
 
   // Initialize data
@@ -107,21 +108,25 @@ export function DataProvider({ children }) {
     if (isDemo) {
       const savedShifts = localStorage.getItem('pool_shifts');
       const savedStaff = localStorage.getItem('pool_staff');
+      const savedRotations = localStorage.getItem('pool_rotations');
       setStaff(savedStaff ? JSON.parse(savedStaff) : [...MOCK_STAFF]);
       setShifts(savedShifts ? JSON.parse(savedShifts) : [...MOCK_SHIFTS]);
       setRequirements([...MOCK_STAFFING_REQUIREMENTS]);
+      setRotations(savedRotations ? JSON.parse(savedRotations) : []);
       setInitialized(true);
     } else {
       const fetchData = async () => {
-        const [staffRes, shiftsRes, reqsRes] = await Promise.all([
+        const [staffRes, shiftsRes, reqsRes, rotRes] = await Promise.all([
           supabase.from('profiles').select('*'),
           supabase.from('shifts').select('*'),
-          supabase.from('staffing_requirements').select('*')
+          supabase.from('staffing_requirements').select('*'),
+          supabase.from('rotations').select('*')
         ]);
         
         if (staffRes.data) setStaff(staffRes.data);
         if (shiftsRes.data) setShifts(shiftsRes.data);
         if (reqsRes.data) setRequirements(reqsRes.data);
+        if (rotRes.data) setRotations(rotRes.data);
         setInitialized(true);
       };
       fetchData();
@@ -142,9 +147,18 @@ export function DataProvider({ children }) {
         })
         .subscribe();
         
+      const rotationsSub = supabase.channel('rotations')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'rotations' }, payload => {
+          if (payload.eventType === 'INSERT') setRotations(prev => [...prev, payload.new]);
+          if (payload.eventType === 'UPDATE') setRotations(prev => prev.map(r => r.id === payload.new.id ? payload.new : r));
+          if (payload.eventType === 'DELETE') setRotations(prev => prev.filter(r => r.id !== payload.old.id));
+        })
+        .subscribe();
+        
       return () => {
         supabase.removeChannel(shiftsSub);
         supabase.removeChannel(profilesSub);
+        supabase.removeChannel(rotationsSub);
       };
     }
   }, []);
@@ -342,17 +356,48 @@ export function DataProvider({ children }) {
     }
   }, []);
 
+  const saveRotation = useCallback(async (date, data) => {
+    if (isDemo) {
+      setRotations(prev => {
+        const filtered = prev.filter(r => r.date !== date);
+        const newRot = { id: generateId(), date, data, updated_at: new Date().toISOString() };
+        const newState = [...filtered, newRot];
+        localStorage.setItem('pool_rotations', JSON.stringify(newState));
+        return newState;
+      });
+    } else {
+      const { error } = await supabase.from('rotations').upsert({ date, data }, { onConflict: 'date' });
+      if (error) console.error('Error saving rotation:', error);
+    }
+  }, []);
+
+  const deleteRotation = useCallback(async (date) => {
+    if (isDemo) {
+      setRotations(prev => {
+        const newState = prev.filter(r => r.date !== date);
+        localStorage.setItem('pool_rotations', JSON.stringify(newState));
+        return newState;
+      });
+    } else {
+      const { error } = await supabase.from('rotations').delete().eq('date', date);
+      if (error) console.error('Error deleting rotation:', error);
+    }
+  }, []);
+
   const resetData = useCallback(() => {
     setStaff([...MOCK_STAFF]);
     setShifts([...MOCK_SHIFTS]);
+    setRotations([]);
     localStorage.removeItem('pool_shifts');
     localStorage.removeItem('pool_staff');
+    localStorage.removeItem('pool_rotations');
   }, []);
 
   const value = {
-    staff, shifts, requirements, initialized,
+    staff, shifts, requirements, rotations, initialized,
     getShifts, createShift, updateShiftStatus, deleteShift, updateShift, bulkApproveShifts,
     getStaff, getStaffById, createStaff, updateStaff, deleteStaff,
+    saveRotation, deleteRotation,
     resetData,
   };
 
