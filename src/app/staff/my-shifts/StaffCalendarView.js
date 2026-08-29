@@ -71,7 +71,7 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
       </div>
 
       <div className="calendar-scroll-wrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <div className="calendar-grid" style={{ minWidth: '600px' }}>
+        <div className="calendar-grid" style={{ minWidth: '100%' }}>
           {/* Weekdays */}
         {['日', '月', '火', '水', '木', '金', '土'].map((day, idx) => (
           <div key={day} className={`calendar-weekday ${idx === 0 ? 'text-danger' : idx === 6 ? 'text-primary' : ''}`}>
@@ -116,7 +116,7 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
                       onShiftClick(shift);
                     }}
                   >
-                    <div className="shift-time">{shift.start_time}-{shift.end_time}</div>
+                    <div className="shift-time">{shift.start_time.substring(0,5)} - {shift.end_time.substring(0,5)}</div>
                     <div className="shift-status">{getStatusLabel(shift.status)}</div>
                   </div>
                 ))}

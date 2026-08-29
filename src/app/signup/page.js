@@ -23,7 +23,7 @@ export default function SignupPage() {
 
     try {
       const isMinor = formData.staff_type === 'high_school';
-      const hourlyWage = isMinor ? 1112 : 1163; // Default wages, can be changed by admin later
+      const hourlyWage = 1300; // Default wages, can be changed by admin later
 
       const response = await fetch('/api/staff', {
         method: 'POST',

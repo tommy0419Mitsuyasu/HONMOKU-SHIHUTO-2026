@@ -43,7 +43,7 @@ export async function POST(request) {
       role: role === 'admin' ? 'admin' : 'staff',
       staff_type: staff_type || 'general',
       is_minor: is_minor || false,
-      hourly_wage: hourly_wage || 1163,
+      hourly_wage: hourly_wage || 1300,
       is_active: true,
       raw_password: password, // For admin to view forgotten passwords (insecure but requested)
     }).select().single();
