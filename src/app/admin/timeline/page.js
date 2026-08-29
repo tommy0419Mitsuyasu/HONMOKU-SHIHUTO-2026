@@ -94,6 +94,20 @@ export default function TimelinePage() {
     });
   }, [displayShifts, requirements, selectedDate, hours]);
 
+  const handlePrevDay = () => {
+    if (!selectedDate) return;
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextDay = () => {
+    if (!selectedDate) return;
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
   if (loading) {
     return <div className="loading-screen"><div className="spinner"></div></div>;
   }
@@ -112,20 +126,25 @@ export default function TimelinePage() {
 
       <div className="timeline-controls">
         <div className="date-selector">
-          <DatePicker
-            selected={selectedDate ? new Date(selectedDate + 'T00:00:00') : null}
-            onChange={(date) => {
-              if (date) {
-                const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-                setSelectedDate(localDate.toISOString().split('T')[0]);
-              }
-            }}
-            locale={ja}
-            dateFormat="yyyy/MM/dd"
-            className="form-input"
-            placeholderText="日付を選択"
-          />
-          <span style={{ fontWeight: 600 }}>{formatDateWithDay(selectedDate)}</span>
+          <button className="btn btn-ghost" style={{ padding: '0.5rem 1rem' }} onClick={handlePrevDay}>&lt; 前日</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <DatePicker
+              selected={selectedDate ? new Date(selectedDate + 'T00:00:00') : null}
+              onChange={(date) => {
+                if (date) {
+                  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+                  setSelectedDate(localDate.toISOString().split('T')[0]);
+                }
+              }}
+              locale={ja}
+              dateFormat="yyyy/MM/dd"
+              className="form-input"
+              placeholderText="日付を選択"
+              style={{ width: '130px' }}
+            />
+            <span style={{ fontWeight: 600 }}>{formatDateWithDay(selectedDate)}</span>
+          </div>
+          <button className="btn btn-ghost" style={{ padding: '0.5rem 1rem' }} onClick={handleNextDay}>翌日 &gt;</button>
         </div>
         
         <div className="filter-group">
