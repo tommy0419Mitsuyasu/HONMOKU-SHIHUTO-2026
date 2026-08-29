@@ -285,6 +285,7 @@ export default function MyShifts() {
               <div className="form-group">
                 <label className="form-label">勤務日</label>
                 <DatePicker
+                  calendarStartDay={1}
                   selected={editDate ? new Date(editDate + 'T00:00:00') : null}
                   onChange={(date) => {
                     if (date) {

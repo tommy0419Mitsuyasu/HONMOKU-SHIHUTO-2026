@@ -99,6 +99,7 @@ export default function StaffRotationView({ allShifts, allStaff, user }) {
           <button className="btn btn-ghost" style={{ padding: '0.5rem' }} onClick={handlePrevDay}>&lt; 前日</button>
           <div style={{ zIndex: 9999 }}>
             <DatePicker
+              calendarStartDay={1}
               selected={new Date(selectedDate + 'T00:00:00')}
               onChange={(date) => {
                 if (date) {

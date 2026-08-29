@@ -135,6 +135,7 @@ export default function TimelinePage() {
           <button className="btn btn-ghost" style={{ padding: '0.5rem 1rem' }} onClick={handlePrevDay}>&lt; 前日</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <DatePicker
+              calendarStartDay={1}
               selected={selectedDate ? new Date(selectedDate + 'T00:00:00') : null}
               onChange={(date) => {
                 if (date) {
