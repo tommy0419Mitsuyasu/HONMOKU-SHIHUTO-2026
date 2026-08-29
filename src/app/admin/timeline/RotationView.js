@@ -27,20 +27,44 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
       });
 
       const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
 
       // Export Day Table
       const canvasDay = await html2canvas(dayTableRef.current, { scale: 2, useCORS: true, logging: false });
       const imgDataDay = canvasDay.toDataURL('image/png');
-      const pdfHeightDay = (canvasDay.height * pdfWidth) / canvasDay.width;
-      pdf.addImage(imgDataDay, 'PNG', 0, 0, pdfWidth, pdfHeightDay);
+      
+      let renderWidthDay = pdfWidth;
+      let renderHeightDay = (canvasDay.height * pdfWidth) / canvasDay.width;
+      
+      // もし縦幅がページに収まらない場合、縦幅を基準に縮小する
+      if (renderHeightDay > pdfHeight) {
+        renderHeightDay = pdfHeight;
+        renderWidthDay = (canvasDay.width * pdfHeight) / canvasDay.height;
+      }
+      
+      const xDay = (pdfWidth - renderWidthDay) / 2;
+      const yDay = (pdfHeight - renderHeightDay) / 2;
+      
+      pdf.addImage(imgDataDay, 'PNG', xDay, yDay, renderWidthDay, renderHeightDay);
 
       // Export Night Table if it exists/visible
       if (nightTableRef.current) {
         pdf.addPage();
         const canvasNight = await html2canvas(nightTableRef.current, { scale: 2, useCORS: true, logging: false });
         const imgDataNight = canvasNight.toDataURL('image/png');
-        const pdfHeightNight = (canvasNight.height * pdfWidth) / canvasNight.width;
-        pdf.addImage(imgDataNight, 'PNG', 0, 0, pdfWidth, pdfHeightNight);
+        
+        let renderWidthNight = pdfWidth;
+        let renderHeightNight = (canvasNight.height * pdfWidth) / canvasNight.width;
+        
+        if (renderHeightNight > pdfHeight) {
+          renderHeightNight = pdfHeight;
+          renderWidthNight = (canvasNight.width * pdfHeight) / canvasNight.height;
+        }
+        
+        const xNight = (pdfWidth - renderWidthNight) / 2;
+        const yNight = (pdfHeight - renderHeightNight) / 2;
+        
+        pdf.addImage(imgDataNight, 'PNG', xNight, yNight, renderWidthNight, renderHeightNight);
       }
 
       pdf.save(`ローテーション表_${date}.pdf`);
