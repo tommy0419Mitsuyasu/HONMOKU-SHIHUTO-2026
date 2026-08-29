@@ -98,14 +98,20 @@ export default function TimelinePage() {
     if (!selectedDate) return;
     const d = new Date(selectedDate + 'T00:00:00');
     d.setDate(d.getDate() - 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setSelectedDate(`${y}-${m}-${day}`);
   };
 
   const handleNextDay = () => {
     if (!selectedDate) return;
     const d = new Date(selectedDate + 'T00:00:00');
     d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setSelectedDate(`${y}-${m}-${day}`);
   };
 
   if (loading) {
