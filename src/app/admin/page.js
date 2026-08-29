@@ -4,23 +4,27 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth, useData } from '@/lib/providers';
 import { getToday, calculateHours, formatCurrency, getWeekBounds, getDateRange, formatDateShort } from '@/lib/utils';
 import Link from 'next/link';
+import DatePicker from 'react-datepicker';
+import { ja } from 'date-fns/locale/ja';
+import 'react-datepicker/dist/react-datepicker.css';
 import './dashboard.css';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
   const { shifts, staff, requirements, getShifts, getStaffById, initialized } = useData();
   const [loading, setLoading] = useState(true);
-
+  
   const today = getToday();
+  const [targetDate, setTargetDate] = useState(today);
 
   useEffect(() => {
     if (initialized) setLoading(false);
   }, [initialized]);
 
-  // Today's Stats
-  const todayShifts = useMemo(() => {
-    return shifts.filter(s => s.work_date === today && ['approved', 'cancel_requested'].includes(s.status));
-  }, [shifts, today]);
+  // Target Date's Stats
+  const targetShifts = useMemo(() => {
+    return shifts.filter(s => s.work_date === targetDate && ['approved', 'cancel_requested'].includes(s.status));
+  }, [shifts, targetDate]);
 
   const pendingShifts = useMemo(() => {
     return shifts.filter(s => s.status === 'pending');
@@ -30,24 +34,24 @@ export default function AdminDashboard() {
     return shifts.filter(s => s.status === 'cancel_requested');
   }, [shifts]);
 
-  const headcount = todayShifts.length;
+  const headcount = targetShifts.length;
   
   const totalHours = useMemo(() => {
-    return todayShifts.reduce((total, shift) => total + calculateHours(shift.start_time, shift.end_time), 0);
-  }, [todayShifts]);
+    return targetShifts.reduce((total, shift) => total + calculateHours(shift.start_time, shift.end_time), 0);
+  }, [targetShifts]);
 
   const totalCost = useMemo(() => {
-    return todayShifts.reduce((total, shift) => {
+    return targetShifts.reduce((total, shift) => {
       const shiftStaff = getStaffById(shift.staff_id);
       if (!shiftStaff) return total;
       const hours = calculateHours(shift.start_time, shift.end_time);
       return total + (hours * shiftStaff.hourly_wage);
     }, 0);
-  }, [todayShifts, getStaffById]);
+  }, [targetShifts, getStaffById]);
 
-  // Weekly Chart Data
+  // Weekly Chart Data (Based on targetDate)
   const weeklyData = useMemo(() => {
-    const { start, end } = getWeekBounds(today);
+    const { start, end } = getWeekBounds(targetDate);
     const range = getDateRange(start, end);
     
     return range.map(date => {
@@ -71,22 +75,64 @@ export default function AdminDashboard() {
   // Understaffed Time Slots (Simplified check)
   const hasUnderstaffed = false; // Add real logic if needed
 
+  const handlePrevDay = () => {
+    if (!targetDate) return;
+    const d = new Date(targetDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setTargetDate(`${y}-${m}-${day}`);
+  };
+
+  const handleNextDay = () => {
+    if (!targetDate) return;
+    const d = new Date(targetDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setTargetDate(`${y}-${m}-${day}`);
+  };
+
   if (loading) {
     return <div className="loading-screen"><div className="spinner"></div></div>;
   }
 
   return (
     <div className="page-enter dashboard-grid">
-      <div className="page-header">
-        <h1 className="page-title">ダッシュボード</h1>
-        <p className="page-subtitle">本日の運用状況と通知</p>
+      <div className="page-header" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '15px' }}>
+        <div>
+          <h1 className="page-title">ダッシュボード</h1>
+          <p className="page-subtitle">{targetDate === today ? '本日' : formatDateShort(targetDate)}の運用状況と通知</p>
+        </div>
+        
+        <div className="date-selector" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button className="btn btn-ghost" style={{ padding: '0.5rem' }} onClick={handlePrevDay}>&lt; 前日</button>
+          <div style={{ zIndex: 9999 }}>
+            <DatePicker
+              selected={new Date(targetDate + 'T00:00:00')}
+              onChange={(date) => {
+                if (date) {
+                  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+                  setTargetDate(localDate.toISOString().split('T')[0]);
+                }
+              }}
+              locale={ja}
+              dateFormat="yyyy/MM/dd"
+              className="form-input"
+              style={{ width: '130px', textAlign: 'center' }}
+            />
+          </div>
+          <button className="btn btn-ghost" style={{ padding: '0.5rem' }} onClick={handleNextDay}>翌日 &gt;</button>
+        </div>
       </div>
 
       <div className="stats-container">
         <div className="stat-card" style={{ '--accent-color': 'var(--primary)' }}>
           <div className="stat-header">
             <span className="stat-icon">👥</span>
-            <span className="stat-label">本日の出勤人数</span>
+            <span className="stat-label">出勤人数</span>
           </div>
           <div className="stat-value">{headcount}<span className="stat-suffix">人</span></div>
         </div>
