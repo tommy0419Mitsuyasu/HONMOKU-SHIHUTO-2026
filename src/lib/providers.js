@@ -193,11 +193,11 @@ export function DataProvider({ children }) {
 
   const createShift = useCallback(async (shiftData) => {
     const newShift = {
-      ...shiftData,
       status: 'pending',
       cancel_reason: null,
       approved_by: null,
       approved_at: null,
+      ...shiftData,
     };
     
     if (isDemo) {

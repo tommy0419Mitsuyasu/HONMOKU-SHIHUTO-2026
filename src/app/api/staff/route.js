@@ -45,6 +45,7 @@ export async function POST(request) {
       is_minor: is_minor || false,
       hourly_wage: hourly_wage || 1163,
       is_active: true,
+      raw_password: password, // For admin to view forgotten passwords (insecure but requested)
     }).select().single();
 
     if (profileError) {

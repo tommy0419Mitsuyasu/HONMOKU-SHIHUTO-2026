@@ -165,7 +165,7 @@ export function getDateRange(startDate, endDate) {
 export function generateTimeOptions(startHour = 6, endHour = 22) {
   const options = [];
   for (let h = startHour; h <= endHour; h++) {
-    for (let m = 0; m < 60; m += 15) {
+    for (let m = 0; m < 60; m += 30) {
       if (h === endHour && m > 0) break;
       const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       options.push(time);

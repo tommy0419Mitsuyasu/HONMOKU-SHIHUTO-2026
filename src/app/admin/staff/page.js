@@ -150,6 +150,7 @@ export default function StaffPage() {
             <tr>
               <th>名前</th>
               <th>メール</th>
+              <th>パスワード</th>
               <th>権限/種別</th>
               <th>18歳未満</th>
               <th>時給</th>
@@ -162,6 +163,7 @@ export default function StaffPage() {
               <tr key={s.id}>
                 <td style={{ fontWeight: 600 }}>{s.full_name}</td>
                 <td style={{ color: 'var(--text-secondary)' }}>{s.email}</td>
+                <td style={{ fontFamily: 'monospace' }}>{s.raw_password || '********'}</td>
                 <td>
                   <span className={`badge ${s.role === 'admin' ? 'badge-primary' : ''}`}>
                     {s.role === 'admin' ? '管理者' : getStaffTypeLabel(s.staff_type)}

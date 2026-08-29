@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/providers';
 import './login.css';
 
@@ -107,6 +108,10 @@ export default function LoginPage() {
               {isSubmitting ? <span className="spinner" style={{ width: '1.2rem', height: '1.2rem', borderWidth: '2px' }}></span> : 'ログイン'}
             </button>
           </form>
+        </div>
+
+        <div className="login-footer" style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+          アカウントをお持ちでないですか？ <Link href="/signup" style={{ color: 'var(--primary-light)', textDecoration: 'none', fontWeight: 500 }}>新規登録</Link>
         </div>
       </div>
     </div>
