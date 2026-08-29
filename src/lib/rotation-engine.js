@@ -138,11 +138,19 @@ export function generateRotation(shifts, staffList) {
       // さらにその次の枠が休憩かどうかの判定（休憩前の3ポジション連続を防ぐための先読み）
       const isSlotAfterNextBreak = row.breakStart !== -1 && (tMins + 60) >= row.breakStart && (tMins + 60) < row.breakEnd;
 
-      // 休憩前デッドロック回避：1枠勤務済みで、2枠後が休憩の場合、ここでStを入れないと「次枠でSt(直前St禁止違反)」か「次枠で監視(3連続違反)」になるため、強制的にここでStとする
+      // 休憩前デッドロック回避：1枠勤務済みで、2枠後が休憩の場合、ここで当割を入れないと「次枠でSt(直前St禁止違反)」か「次枠で監視(3連続違反)」になるため、強制的にここで当割とする
       const forceStForBreak = row.activeSlots === 1 && !isNextSlotBreak && isSlotAfterNextBreak;
 
-      // 連続勤務（2枠以上）で、かつ次が休憩でない場合はSt。または上記のデッドロック回避条件に合致した場合。
-      if ((row.activeSlots >= 2 && !isNextSlotBreak) || forceStForBreak) {
+      // 先読みデッドロック回避の対象者は「当割」にする
+      if (forceStForBreak) {
+        row.assignments[slot.label] = '当割';
+        row.lastPosition = '当割';
+        row.activeSlots = 0;
+        return;
+      }
+
+      // 連続勤務（2枠以上）で、かつ次が休憩でない場合は「St」
+      if (row.activeSlots >= 2 && !isNextSlotBreak) {
         row.assignments[slot.label] = 'St';
         row.lastPosition = 'St';
         row.activeSlots = 0;
