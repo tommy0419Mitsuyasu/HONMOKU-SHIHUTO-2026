@@ -70,24 +70,49 @@ export default function StaffRotationView({ allShifts, allStaff, user }) {
     return '#FF9800'; // Normal positions
   };
 
+  const handlePrevDay = () => {
+    if (!selectedDate) return;
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setSelectedDate(`${y}-${m}-${day}`);
+  };
+
+  const handleNextDay = () => {
+    if (!selectedDate) return;
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setSelectedDate(`${y}-${m}-${day}`);
+  };
+
   return (
     <div className="staff-rotation-view glass-card">
-      <div className="rotation-header" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+      <div className="rotation-header" style={{ marginBottom: '20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '15px' }}>
         <h2 className="section-title" style={{ margin: 0 }}>マイポジション</h2>
-        <div style={{ zIndex: 9999 }}>
-          <DatePicker
-            selected={new Date(selectedDate + 'T00:00:00')}
-            onChange={(date) => {
-              if (date) {
-                const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-                setSelectedDate(localDate.toISOString().split('T')[0]);
-              }
-            }}
-            locale={ja}
-            dateFormat="yyyy/MM/dd"
-            className="form-input"
-            style={{ width: '150px' }}
-          />
+        
+        <div className="date-selector" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button className="btn btn-ghost" style={{ padding: '0.5rem' }} onClick={handlePrevDay}>&lt; 前日</button>
+          <div style={{ zIndex: 9999 }}>
+            <DatePicker
+              selected={new Date(selectedDate + 'T00:00:00')}
+              onChange={(date) => {
+                if (date) {
+                  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+                  setSelectedDate(localDate.toISOString().split('T')[0]);
+                }
+              }}
+              locale={ja}
+              dateFormat="yyyy/MM/dd"
+              className="form-input"
+              style={{ width: '130px', textAlign: 'center' }}
+            />
+          </div>
+          <button className="btn btn-ghost" style={{ padding: '0.5rem' }} onClick={handleNextDay}>翌日 &gt;</button>
         </div>
       </div>
 
