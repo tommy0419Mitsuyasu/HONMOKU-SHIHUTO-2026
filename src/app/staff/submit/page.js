@@ -210,7 +210,6 @@ export default function ShiftSubmit() {
               <ul className="minor-rules-list">
                 <li>22:00〜翌5:00の勤務はできません</li>
                 <li>1日の労働時間は8時間を超えられません</li>
-                <li>週の労働時間は40時間を超えられません</li>
               </ul>
             </div>
           )}
