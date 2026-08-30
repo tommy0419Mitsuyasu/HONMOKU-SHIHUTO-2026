@@ -94,6 +94,7 @@ export function generateRotation(shifts, staffList) {
       originalBreakStart: breakStart,
       assignments: {},
       activeSlots: index % 2,
+      posCounts: {},
     });
   });
 
@@ -205,7 +206,7 @@ export function generateRotation(shifts, staffList) {
     const workingStaff = availableForDuty.slice(0, positionsCount);
     const touwariStaff = availableForDuty.slice(positionsCount);
 
-    // 2. ポジションに入る人の中では、連続勤務時間が「長い」人ほど優先度の高い（配列の前の）ポジションを割り当て
+    // 2. ポジションに入る人の中では、連続勤務時間が「長い」人ほど優先的にポジションを選択させる
     workingStaff.sort((a, b) => b.activeSlots - a.activeSlots);
 
     const assignedThisSlot = [];
@@ -215,10 +216,19 @@ export function generateRotation(shifts, staffList) {
       let assignedPos = null;
 
       // 直前のポジションと違うものを探す
-      const validIndex = uniquePositions.findIndex(p => p !== row.lastPosition);
+      let validPositions = uniquePositions.filter(p => p !== row.lastPosition);
       
-      if (validIndex !== -1) {
-        assignedPos = uniquePositions.splice(validIndex, 1)[0];
+      // 担当回数が少ないものを優先。同じ回数なら元の uniquePositions の順序（重要度順）を維持
+      validPositions.sort((p1, p2) => {
+        const count1 = row.posCounts[p1] || 0;
+        const count2 = row.posCounts[p2] || 0;
+        if (count1 !== count2) return count1 - count2;
+        return uniquePositions.indexOf(p1) - uniquePositions.indexOf(p2);
+      });
+      
+      if (validPositions.length > 0) {
+        assignedPos = validPositions[0];
+        uniquePositions.splice(uniquePositions.indexOf(assignedPos), 1);
       } else if (uniquePositions.length > 0) {
         const forcedPos = uniquePositions[0];
         
@@ -234,6 +244,11 @@ export function generateRotation(shifts, staffList) {
           swapCandidate.row.assignments[slot.label] = forcedPos; 
           swapCandidate.row.lastPosition = forcedPos;
           swapCandidate.assignedPos = forcedPos;
+          
+          // カウントの調整
+          swapCandidate.row.posCounts[forcedPos] = (swapCandidate.row.posCounts[forcedPos] || 0) + 1;
+          swapCandidate.row.posCounts[assignedPos] -= 1;
+          
           uniquePositions.shift();
         } else {
           // 交換もできない場合は仕方なく連続割り当て
@@ -243,6 +258,7 @@ export function generateRotation(shifts, staffList) {
       
       row.assignments[slot.label] = assignedPos;
       row.lastPosition = assignedPos;
+      row.posCounts[assignedPos] = (row.posCounts[assignedPos] || 0) + 1;
       row.activeSlots++; // 監視ポジションに入ったので連続勤務カウントを加算
       assignedThisSlot.push({ row, assignedPos });
     });
