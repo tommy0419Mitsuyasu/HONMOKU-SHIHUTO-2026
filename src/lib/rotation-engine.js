@@ -191,7 +191,13 @@ export function generateRotation(shifts, staffList) {
       positions.push('当割');
     }
 
-    const uniquePositions = [...new Set(positions)];
+    let uniquePositions = [...new Set(positions)];
+    
+    // 人数が足りない場合は、優先度の低い（配列の後ろの）ポジションから削る
+    if (availableForDuty.length < uniquePositions.length) {
+      uniquePositions = uniquePositions.slice(0, availableForDuty.length);
+    }
+    
     const positionsCount = uniquePositions.length;
 
     // 1. 誰をポジションに入れ、誰をStにするか決定する
