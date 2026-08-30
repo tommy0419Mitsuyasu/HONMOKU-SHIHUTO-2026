@@ -65,8 +65,8 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
     <div className="staff-calendar glass-card">
       <div className="calendar-header">
         <button className="btn btn-ghost" onClick={handlePrevMonth}>&lt; 前月</button>
-        <h2 className="calendar-title" onClick={handleToday} style={{ cursor: 'pointer' }}>
-          {year}年 {month + 1}月
+        <h2 className="calendar-title" onClick={handleToday} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          {year}年{month + 1}月
         </h2>
         <button className="btn btn-ghost" onClick={handleNextMonth}>次月 &gt;</button>
       </div>
@@ -117,10 +117,10 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
                       onShiftClick(shift);
                     }}
                   >
-                    <div className="shift-time" style={{ textAlign: 'center', lineHeight: 1.2 }}>
-                      {shift.start_time.substring(0,5)}<br/>
-                      <span style={{ opacity: 0.5, fontSize: '0.8em' }}>〜</span><br/>
-                      {shift.end_time.substring(0,5)}
+                    <div className="shift-time">
+                      <span className="time-start">{shift.start_time.substring(0,5)}</span>
+                      <span className="time-sep">-</span>
+                      <span className="time-end">{shift.end_time.substring(0,5)}</span>
                     </div>
                     <div className="shift-status" style={{ textAlign: 'center', marginTop: '4px' }}>{getStatusLabel(shift.status)}</div>
                   </div>
