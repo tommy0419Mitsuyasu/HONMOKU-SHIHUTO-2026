@@ -134,26 +134,19 @@ export function generateRotation(shifts, staffList) {
         return;
       }
       
-      // 次の枠が休憩かどうかを判定（休憩直前のStを防ぐため）
+      // 次の枠が休憩かどうかを判定
       const isNextSlotBreak = row.breakStart !== -1 && (tMins + 30) >= row.breakStart && (tMins + 30) < row.breakEnd;
-      // さらにその次の枠が休憩かどうかの判定（休憩前の3ポジション連続を防ぐための先読み）
-      const isSlotAfterNextBreak = row.breakStart !== -1 && (tMins + 60) >= row.breakStart && (tMins + 60) < row.breakEnd;
 
-      // 休憩前デッドロック回避：1枠勤務済みで、2枠後が休憩の場合、ここで当割を入れないと「次枠でSt(直前St禁止違反)」か「次枠で監視(3連続違反)」になるため、強制的にここで当割とする
-      const forceStForBreak = row.activeSlots === 1 && !isNextSlotBreak && isSlotAfterNextBreak;
-
-      // 先読みデッドロック回避の対象者は「St」にする
-      if (forceStForBreak) {
-        row.assignments[slot.label] = 'St';
-        row.lastPosition = 'St';
-        row.activeSlots = 0;
-        return;
-      }
-
-      // 連続勤務（2枠以上）で、かつ次が休憩でない場合は「St」
-      if (row.activeSlots >= 2 && !isNextSlotBreak) {
-        row.assignments[slot.label] = 'St';
-        row.lastPosition = 'St';
+      // 連続勤務（2枠以上）の場合は休ませる（通常は「St」）
+      if (row.activeSlots >= 2) {
+        // 休憩直前のStはややこしいため、「当割」という名称にする
+        if (isNextSlotBreak) {
+          row.assignments[slot.label] = '当割';
+          row.lastPosition = '当割';
+        } else {
+          row.assignments[slot.label] = 'St';
+          row.lastPosition = 'St';
+        }
         row.activeSlots = 0;
         return;
       }
@@ -268,9 +261,15 @@ export function generateRotation(shifts, staffList) {
 
     // 余った人は「St」として休ませる
     standbyStaff.forEach(row => {
-      row.assignments[slot.label] = 'St';
-      row.lastPosition = 'St';
-      row.activeSlots = 0; // Stは休養なので連続勤務カウントをリセット
+      const isNextSlotBreak = row.breakStart !== -1 && (tMins + 30) >= row.breakStart && (tMins + 30) < row.breakEnd;
+      if (isNextSlotBreak) {
+        row.assignments[slot.label] = '当割';
+        row.lastPosition = '当割';
+      } else {
+        row.assignments[slot.label] = 'St';
+        row.lastPosition = 'St';
+      }
+      row.activeSlots = 0; // St(または休憩前の当割)は休養扱いなので連続勤務カウントをリセット
     });
   });
 
