@@ -261,7 +261,7 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
             </>
           ) : (
             <>
-              <button className="btn btn-outline" onClick={() => setIsEditMode(true)}>✏️ 編集モード</button>
+              <button className="btn btn-warning" onClick={() => setIsEditMode(true)}>✏️ 編集モード</button>
               {savedRotation && (
                 <button className="btn btn-danger" onClick={handleRegenerate}>🔄 自動生成に戻す</button>
               )}
