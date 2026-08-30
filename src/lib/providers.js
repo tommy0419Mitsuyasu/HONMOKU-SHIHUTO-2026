@@ -357,28 +357,29 @@ export function DataProvider({ children }) {
   }, []);
 
   const saveRotation = useCallback(async (date, data) => {
-    if (isDemo) {
-      setRotations(prev => {
-        const filtered = prev.filter(r => r.date !== date);
-        const newRot = { id: generateId(), date, data, updated_at: new Date().toISOString() };
-        const newState = [...filtered, newRot];
-        localStorage.setItem('pool_rotations', JSON.stringify(newState));
-        return newState;
-      });
-    } else {
+    const newRot = { id: generateId(), date, data, updated_at: new Date().toISOString() };
+    
+    setRotations(prev => {
+      const filtered = prev.filter(r => r.date !== date);
+      const newState = [...filtered, newRot];
+      if (isDemo) localStorage.setItem('pool_rotations', JSON.stringify(newState));
+      return newState;
+    });
+
+    if (!isDemo) {
       const { error } = await supabase.from('rotations').upsert({ date, data }, { onConflict: 'date' });
       if (error) console.error('Error saving rotation:', error);
     }
   }, []);
 
   const deleteRotation = useCallback(async (date) => {
-    if (isDemo) {
-      setRotations(prev => {
-        const newState = prev.filter(r => r.date !== date);
-        localStorage.setItem('pool_rotations', JSON.stringify(newState));
-        return newState;
-      });
-    } else {
+    setRotations(prev => {
+      const newState = prev.filter(r => r.date !== date);
+      if (isDemo) localStorage.setItem('pool_rotations', JSON.stringify(newState));
+      return newState;
+    });
+
+    if (!isDemo) {
       const { error } = await supabase.from('rotations').delete().eq('date', date);
       if (error) console.error('Error deleting rotation:', error);
     }

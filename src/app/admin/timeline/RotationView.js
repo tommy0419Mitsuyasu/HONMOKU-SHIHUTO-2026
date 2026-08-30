@@ -144,8 +144,6 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
   const renderTable = (slots, tableRef, title) => {
     if (slots.length === 0) return null;
     
-    const positionOptions = ['', '上', '下', 'T1', 'T2', 'T3', 'T4', 'B', 'A', 'K', '後方', '横', 'F', 'P1', 'P2', '階下', 'St', '当割', '休憩', '掃除', '準備'];
-    
     return (
       <div className="rotation-table-wrapper" ref={tableRef} style={{ marginBottom: '40px' }}>
         <div className="rotation-date-header">
@@ -211,7 +209,8 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
                     >
                       {isWorking ? (
                         isEditMode ? (
-                          <select 
+                          <input 
+                            list="position-options"
                             value={assignment || ''}
                             onChange={(e) => handleCellChange(row.staff.id, slot.label, e.target.value)}
                             style={{ 
@@ -221,13 +220,10 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
                               backgroundColor: 'transparent',
                               textAlign: 'center',
                               outline: 'none',
-                              cursor: 'pointer'
+                              cursor: 'text',
+                              padding: '0'
                             }}
-                          >
-                            {positionOptions.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
+                          />
                         ) : (
                           assignment || ''
                         )
@@ -243,8 +239,15 @@ export default function RotationView({ shifts, staff, date, onOpenModal }) {
     );
   };
 
+  const positionOptions = ['', '上', '下', 'T1', 'T2', 'T3', 'T4', 'B', 'A', 'K', '後方', '横', 'F', 'P1', 'P2', '階下', 'St', '当割', '休憩', '掃除', '準備'];
+
   return (
     <div className="rotation-container">
+      <datalist id="position-options">
+        {positionOptions.map(opt => (
+          <option key={opt} value={opt} />
+        ))}
+      </datalist>
       <div className="rotation-header-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 className="rotation-title" style={{ margin: 0 }}>
           {savedRotation ? '手動編集済みローテーション表' : '自動生成ローテーション表'}
