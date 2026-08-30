@@ -142,10 +142,10 @@ export function generateRotation(shifts, staffList) {
       // 休憩前デッドロック回避：1枠勤務済みで、2枠後が休憩の場合、ここで当割を入れないと「次枠でSt(直前St禁止違反)」か「次枠で監視(3連続違反)」になるため、強制的にここで当割とする
       const forceStForBreak = row.activeSlots === 1 && !isNextSlotBreak && isSlotAfterNextBreak;
 
-      // 先読みデッドロック回避の対象者は「当割」にする
+      // 先読みデッドロック回避の対象者は「St」にする
       if (forceStForBreak) {
-        row.assignments[slot.label] = '当割';
-        row.lastPosition = '当割';
+        row.assignments[slot.label] = 'St';
+        row.lastPosition = 'St';
         row.activeSlots = 0;
         return;
       }
@@ -192,19 +192,22 @@ export function generateRotation(shifts, staffList) {
 
     // DAYプールのみ
     if (tMins < 1080) {
-      positions.push('A', 'K');
+      positions.push('A', 'K', '当割');
+    } else {
+      // ナイトプールでも当割は必要か？通常は必要なので入れる
+      positions.push('当割');
     }
 
     const uniquePositions = [...new Set(positions)];
     const positionsCount = uniquePositions.length;
 
-    // 1. 誰を監視ポジションに入れ、誰を当割にするか決定する
+    // 1. 誰をポジションに入れ、誰をStにするか決定する
     // activeSlotsが「少ない」人（休んでいた人）を優先してポジションに入れることで、
     // 全員が同時に activeSlots=2 に到達してStが大量発生（全滅）するのを防ぐ。
     availableForDuty.sort((a, b) => a.activeSlots - b.activeSlots);
 
     const workingStaff = availableForDuty.slice(0, positionsCount);
-    const touwariStaff = availableForDuty.slice(positionsCount);
+    const standbyStaff = availableForDuty.slice(positionsCount);
 
     // 2. ポジションに入る人の中では、連続勤務時間が「長い」人ほど優先的にポジションを選択させる
     workingStaff.sort((a, b) => b.activeSlots - a.activeSlots);
@@ -263,11 +266,11 @@ export function generateRotation(shifts, staffList) {
       assignedThisSlot.push({ row, assignedPos });
     });
 
-    // 余った人は「当割」
-    touwariStaff.forEach(row => {
-      row.assignments[slot.label] = '当割';
-      row.lastPosition = '当割';
-      row.activeSlots = 0; // 当割は監視業務ではないので、連続勤務カウントをリセットして休ませる
+    // 余った人は「St」として休ませる
+    standbyStaff.forEach(row => {
+      row.assignments[slot.label] = 'St';
+      row.lastPosition = 'St';
+      row.activeSlots = 0; // Stは休養なので連続勤務カウントをリセット
     });
   });
 
