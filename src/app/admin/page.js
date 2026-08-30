@@ -72,8 +72,56 @@ export default function AdminDashboard() {
 
   const maxWeeklyCost = Math.max(...weeklyData.map(d => d.cost), 1); // prevent div by zero
 
-  // Understaffed Time Slots (Simplified check)
-  const hasUnderstaffed = false; // Add real logic if needed
+  // 人員不足アラート（向こう4日間）
+  const understaffedAlerts = useMemo(() => {
+    const alerts = [];
+    const next4Days = Array.from({ length: 4 }).map((_, i) => {
+      const d = new Date(today + 'T00:00:00');
+      d.setDate(d.getDate() + i);
+      return d.toISOString().split('T')[0];
+    });
+
+    // 営業時間: 09:00 (540分) 〜 21:00 (1260分) の間で30分単位
+    const slots = [];
+    for (let m = 540; m < 1260; m += 30) {
+      slots.push({
+        startMins: m,
+        endMins: m + 30,
+        labelStart: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`,
+        labelEnd: `${String(Math.floor((m + 30) / 60)).padStart(2, '0')}:${String((m + 30) % 60).padStart(2, '0')}`
+      });
+    }
+
+    next4Days.forEach(date => {
+      const dayShifts = shifts.filter(s => s.work_date === date && ['approved', 'cancel_requested'].includes(s.status));
+      
+      let currentShortage = null;
+      
+      slots.forEach(slot => {
+        const workingCount = dayShifts.filter(s => {
+          const sMins = parseInt(s.start_time.split(':')[0]) * 60 + parseInt(s.start_time.split(':')[1]);
+          const eMins = parseInt(s.end_time.split(':')[0]) * 60 + parseInt(s.end_time.split(':')[1]);
+          return slot.startMins >= sMins && slot.startMins < eMins;
+        }).length;
+
+        if (workingCount <= 9) {
+          if (!currentShortage) {
+            currentShortage = { date, startLabel: slot.labelStart, endLabel: slot.labelEnd, minCount: workingCount };
+          } else {
+            currentShortage.endLabel = slot.labelEnd;
+            currentShortage.minCount = Math.min(currentShortage.minCount, workingCount);
+          }
+        } else {
+          if (currentShortage) {
+            alerts.push(currentShortage);
+            currentShortage = null;
+          }
+        }
+      });
+      if (currentShortage) alerts.push(currentShortage);
+    });
+    return alerts;
+  }, [shifts, today]);
 
   const handlePrevDay = () => {
     if (!targetDate) return;
@@ -93,6 +141,12 @@ export default function AdminDashboard() {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     setTargetDate(`${y}-${m}-${day}`);
+  };
+
+  const createLineShareUrl = (alert) => {
+    const dateFormatted = formatDateShort(alert.date);
+    const text = `【🚨ヘルプ急募🚨】\n${dateFormatted} の ${alert.startLabel} 〜 ${alert.endLabel}の時間で人数が足りていません\n入れる方は下記URLからシフト登録お願いします！！\n\n少ない時間でも入ってくれる方は以下のURLからシフトの追加提出をお願いします。\nhttps://honmoku-shihuto-2026.vercel.app/staff/submit`;
+    return `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
   };
 
   if (loading) {
@@ -128,6 +182,27 @@ export default function AdminDashboard() {
           <button className="btn btn-ghost" style={{ padding: '0.5rem' }} onClick={handleNextDay}>翌日 &gt;</button>
         </div>
       </div>
+
+      {understaffedAlerts.length > 0 && (
+        <div style={{ marginBottom: '20px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', borderRadius: '10px', padding: '15px' }}>
+          <h2 style={{ color: 'var(--danger)', fontSize: '1.2rem', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🚨</span> 直近4日間の人員不足アラート（9人以下）
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {understaffedAlerts.map((alert, idx) => (
+              <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '10px 15px', borderRadius: '8px' }}>
+                <div>
+                  <strong style={{ fontSize: '1.1rem', color: '#fff' }}>{formatDateShort(alert.date)} {alert.startLabel} 〜 {alert.endLabel}</strong>
+                  <span style={{ marginLeft: '10px', color: 'var(--text-secondary)' }}>最低人数: <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>{alert.minCount}人</span></span>
+                </div>
+                <a href={createLineShareUrl(alert)} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ background: '#06c755', borderColor: '#06c755', color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span>LINEで募集</span>
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="stats-container">
         <div className="stat-card" style={{ '--accent-color': 'var(--primary)' }}>
