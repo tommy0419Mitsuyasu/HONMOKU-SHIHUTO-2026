@@ -268,19 +268,35 @@
   white-space: nowrap;
 }
 
-@media (max-width: 768px) {
-  .shift-time {
-    flex-direction: column;
-    font-size: 0.8em;
-  }
-  .time-sep {
-    display: none;
-  }
+.time-sep {
+  margin: 0 4px;
 }
 
 .shift-status {
   font-size: 0.65rem;
   opacity: 0.9;
+  white-space: nowrap; /* Prevent wrapping like "承認\n済" on narrow screens */
+  text-align: center;
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .shift-time {
+    flex-direction: column;
+    font-size: 0.75rem; /* Slightly smaller for mobile */
+    line-height: 1.1;
+  }
+  .time-sep {
+    display: block;
+    opacity: 0.5;
+    font-size: 0.8em;
+    margin: 1px 0;
+  }
+  .shift-status {
+    font-size: 0.6rem;
+    transform: scale(0.9);
+    margin-top: 2px;
+  }
 }
 
 .text-danger { color: var(--danger, #ef4444); }

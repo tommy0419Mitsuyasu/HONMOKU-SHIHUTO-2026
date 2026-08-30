@@ -119,10 +119,10 @@ export default function StaffCalendarView({ shifts, onShiftClick, onDateClick })
                   >
                     <div className="shift-time">
                       <span className="time-start">{shift.start_time.substring(0,5)}</span>
-                      <span className="time-sep">-</span>
+                      <span className="time-sep">〜</span>
                       <span className="time-end">{shift.end_time.substring(0,5)}</span>
                     </div>
-                    <div className="shift-status" style={{ textAlign: 'center', marginTop: '4px' }}>{getStatusLabel(shift.status)}</div>
+                    <div className="shift-status">{getStatusLabel(shift.status)}</div>
                   </div>
                 ))}
               </div>
